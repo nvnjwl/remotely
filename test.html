@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Debug Tool - Developer Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #0D1117;
+            --bg-secondary: #161B22;
+            --bg-tertiary: #21262D;
+            --bg-accent: #30363D;
+            --accent: #58A6FF;
+            --accent-hover: #1F6FEB;
+            --success: #238636;
+            --warning: #D29922;
+            --error: #DA3633;
+            --info: #1F6FEB;
+            --text-primary: #F0F6FC;
+            --text-secondary: #8B949E;
+            --text-muted: #6E7681;
+            --border: #30363D;
+            --border-hover: #58A6FF;
+            --shadow: 0 8px 24px rgba(1, 4, 9, 0.8);
+            --shadow-lg: 0 16px 64px rgba(1, 4, 9, 0.9);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100vh;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            grid-template-rows: 60px 1fr;
+            grid-template-areas:
+                "header header"
+                "sidebar main";
+            height: 100vh;
+            gap: 0;
+        }
+
+        .header {
+            grid-area: header;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.1em;
+            color: var(--accent);
+        }
+
+        .logo i {
+            font-size: 1.3em;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--error);
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: var(--success);
+        }
+
+        .sidebar {
+            grid-area: sidebar;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .config-section {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.85em;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.9em;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+        }
+
+        .checkbox-input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+        }
+
+        .checkbox-label {
+            font-size: 0.9em;
+            font-weight: 500;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .primary-button {
+            width: 100%;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .primary-button:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .primary-button:active {
+            transform: translateY(0);
+        }
+
+        .main-content {
+            grid-area: main;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tabs-container {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+        }
+
+        .tab {
+            padding: 14px 20px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.9em;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--text-primary);
+        }
+
+        .tab-content {
+            flex: 1;
+            overflow: hidden;
+            display: none;
+            flex-direction: column;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        .test-actions {
+            padding: 24px;
+            background: var(--bg-tertiary);
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .action-button {
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .action-button:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-1px);
+        }
+
+        .action-button[data-type="error"] {
+            border-color: var(--error);
+            color: var(--error);
+        }
+
+        .action-button[data-type="info"] {
+            border-color: var(--info);
+            color: var(--info);
+        }
+
+        .action-button[data-type="warn"] {
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+
+        .action-button[data-type="success"] {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .output-container {
+            flex: 1;
+            background: var(--bg-primary);
+            margin: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .output-header {
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .output-title {
+            font-weight: 600;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .output-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-button {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .icon-button:hover {
+            background: var(--bg-accent);
+            color: var(--text-primary);
+        }
+
+        .output-content {
+            flex: 1;
+            padding: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            line-height: 1.6;
+            overflow-y: auto;
+            background: var(--bg-primary);
+        }
+
+        .output-line {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+        }
+
+        .output-line:hover {
+            background: var(--bg-secondary);
+        }
+
+        .output-timestamp {
+            color: var(--text-muted);
+            font-size: 0.8em;
+            min-width: 80px;
+        }
+
+        .output-type {
+            min-width: 60px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75em;
+        }
+
+        .output-type.error {
+            color: var(--error);
+        }
+
+        .output-type.warn {
+            color: var(--warning);
+        }
+
+        .output-type.info {
+            color: var(--info);
+        }
+
+        .output-type.success {
+            color: var(--success);
+        }
+
+        .output-type.log {
+            color: var(--text-secondary);
+        }
+
+        .output-message {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .json-output {
+            background: var(--bg-secondary);
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent);
+            margin: 8px 0;
+            overflow-x: auto;
+        }
+
+        .stats-container {
+            padding: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .network-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8em;
+        }
+
+        .network-table th,
+        .network-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .network-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-secondary);
+            position: sticky;
+            top: 0;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+
+        .status-200 {
+            background: rgba(35, 134, 54, 0.2);
+            color: var(--success);
+        }
+
+        .status-400 {
+            background: rgba(218, 54, 51, 0.2);
+            color: var(--error);
+        }
+
+        .status-500 {
+            background: rgba(218, 54, 51, 0.2);
+            color: var(--error);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .network-table-container {
+            padding: 0;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "header"
+                    "main";
+            }
+
+            .sidebar {
+                position: fixed;
+                left: -350px;
+                top: 60px;
+                height: calc(100vh - 60px);
+                z-index: 90;
+                transition: left 0.3s ease;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+        }
+    </style>
+    <!-- <script src="https://player-dev.sonyliv.com/sdk/requestly/2112/spn-requestly-sdk-debug.js"></script>
+    <script src="./libs/rrweb.min.js"></script>
+    <script src="./libs/lz-string.min.js"></script> -->
+    <script src="./debugmodesdk.js"></script>
+</head>
+
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <i class="fas fa-bug"></i>
+                    <span>Remote Debug Console</span>
+                </div>
+                <div class="connection-status">
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <span id="statusText">Disconnected</span>
+                </div>
+            </div>
+            <button class="icon-button hidden" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="config-section">
+                <h3 class="section-title">Connection Settings</h3>
+                <div class="form-group">
+                    <label class="form-label" for="cpidInput">Connection ID (CPID)</label>
+                    <input type="text" id="cpidInput" class="form-input" placeholder="Enter CPID value"
+                        value="190512144182233378">
+                </div>
+                <button id="startConnectButton" class="primary-button">
+                    <i class="fas fa-plug"></i> Start Debug Session
+                </button>
+            </div>
+
+            <div class="config-section">
+                <h3 class="section-title">Monitoring Options</h3>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="networkCapture" class="checkbox-input">
+                    <label for="networkCapture" class="checkbox-label">Network Capture</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="consoleCapture" class="checkbox-input" checked>
+                    <label for="consoleCapture" class="checkbox-label">Console Capture</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="errorLogging" class="checkbox-input" checked>
+                    <label for="errorLogging" class="checkbox-label">Error Logging</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="performanceMonitor" class="checkbox-input">
+                    <label for="performanceMonitor" class="checkbox-label">Performance Monitor</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="domRecording" class="checkbox-input" checked>
+                    <label for="domRecording" class="checkbox-label">DOM Recording</label>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h3 class="section-title">Quick Actions</h3>
+                <button class="primary-button" id="clearAllLogs">
+                    <i class="fas fa-trash"></i> Clear All Logs
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="tabs-container">
+                <button class="tab active" data-tab="testing">
+                    <i class="fas fa-flask"></i> Testing
+                </button>
+                <button class="tab" data-tab="console">
+                    <i class="fas fa-terminal"></i> Console
+                </button>
+                <button class="tab" data-tab="network">
+                    <i class="fas fa-globe"></i> Network
+                </button>
+                <button class="tab" data-tab="performance">
+                    <i class="fas fa-chart-line"></i> Performance
+                </button>
+            </div>
+
+            <!-- Testing Tab -->
+            <div class="tab-content active" id="testing">
+                <div class="test-actions">
+                    <h3 class="section-title">Test Actions</h3>
+                    <div class="actions-grid">
+                        <button class="action-button" data-type="error" id="errorBtn">
+                            <i class="fas fa-times-circle"></i> Trigger Error
+                        </button>
+                        <button class="action-button" data-type="warn" id="warnBtn">
+                            <i class="fas fa-exclamation-triangle"></i> Trigger Warning
+                        </button>
+                        <button class="action-button" data-type="info" id="infoBtn">
+                            <i class="fas fa-info-circle"></i> Log Information
+                        </button>
+                        <button class="action-button" data-type="success" id="logBtn">
+                            <i class="fas fa-check-circle"></i> Log Success
+                        </button>
+                        <button class="action-button" id="consoleTestBtn">
+                            <i class="fas fa-comment-dots"></i> Test Console.log
+                        </button>
+                        <button class="action-button" data-type="fetch" id="fetchBtn">
+                            <i class="fas fa-download"></i> Test Fetch
+                        </button>
+                        <button class="action-button" data-type="xhr" id="xhrBtn">
+                            <i class="fas fa-exchange-alt"></i> Test XHR
+                        </button>
+                        <button class="action-button" id="performanceBtn">
+                            <i class="fas fa-stopwatch"></i> Performance Test
+                        </button>
+                        <button class="action-button" id="domManipBtn">
+                            <i class="fas fa-code"></i> DOM Manipulation
+                        </button>
+                    </div>
+                </div>
+
+                <div class="output-container">
+                    <div class="output-header">
+                        <div class="output-title">
+                            <i class="fas fa-terminal"></i>
+                            Live Output
+                        </div>
+                        <div class="output-controls">
+                            <button class="icon-button" id="clearOutput" title="Clear Output">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="icon-button" id="exportLogs" title="Export Logs">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="output-content" id="outputContent">
+                        <div class="output-line">
+                            <span class="output-timestamp">00:00:00</span>
+                            <span class="output-type info">INFO</span>
+                            <span class="output-message">Debug session ready. Click buttons above to test
+                                functionality.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Console Tab -->
+            <div class="tab-content" id="console">
+                <div class="output-container">
+                    <div class="output-header">
+                        <div class="output-title">
+                            <i class="fas fa-terminal"></i>
+                            Console Logs
+                        </div>
+                        <div class="output-controls">
+                            <button class="icon-button" id="clearConsole" title="Clear Console">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="output-content" id="consoleContent">
+                        <!-- Console logs will appear here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Tab -->
+            <div class="tab-content" id="network">
+                <div class="output-container">
+                    <div class="output-header">
+                        <div class="output-title">
+                            <i class="fas fa-globe"></i>
+                            Network Requests
+                        </div>
+                        <div class="output-controls">
+                            <button class="icon-button" id="clearNetwork" title="Clear Network">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="output-content network-table-container">
+                        <table class="network-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Method</th>
+                                    <th>URL</th>
+                                    <th>Status</th>
+                                    <th>Size</th>
+                                    <th>Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody id="networkTableBody">
+                                <!-- Network requests will appear here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Tab -->
+            <div class="tab-content" id="performance">
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-value" id="requestCount">0</div>
+                        <div class="stat-label">Total Requests</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="errorCount">0</div>
+                        <div class="stat-label">Errors</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="avgResponseTime">0ms</div>
+                        <div class="stat-label">Avg Response Time</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="sessionTime">00:00</div>
+                        <div class="stat-label">Session Duration</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let stats = {
+            requests: 0,
+            errors: 0,
+            responseTimeSum: 0,
+            sessionStart: Date.now()
+        };
+        let outputLines = [];
+        let networkRequests = [];
+
+        // Utility functions
+        function getCurrentTime() {
+            const now = new Date();
+            return now.toTimeString().split(' ')[0];
+        }
+
+        function addOutputLine(type, message, data = null) {
+            const line = {
+                timestamp: getCurrentTime(),
+                type: type,
+                message: message,
+                data: data
+            };
+            outputLines.push(line);
+            updateOutputDisplay();
+
+            // Also add to console if it's a console message
+            if (['error', 'warn', 'info', 'log'].includes(type)) {
+                updateConsoleDisplay(line);
+            }
+        }
+
+        function updateOutputDisplay() {
+            const container = document.getElementById('outputContent');
+            const lastLine = outputLines[outputLines.length - 1];
+            if (lastLine) {
+                const lineEl = document.createElement('div');
+                lineEl.className = 'output-line';
+                lineEl.innerHTML = `
+                    <span class="output-timestamp">${lastLine.timestamp}</span>
+                    <span class="output-type ${lastLine.type}">${lastLine.type.toUpperCase()}</span>
+                    <span class="output-message">${lastLine.message}</span>
+                `;
+                container.appendChild(lineEl);
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        function updateConsoleDisplay(line) {
+            const container = document.getElementById('consoleContent');
+            const lineEl = document.createElement('div');
+            lineEl.className = 'output-line';
+            lineEl.innerHTML = `
+                <span class="output-timestamp">${line.timestamp}</span>
+                <span class="output-type ${line.type}">${line.type.toUpperCase()}</span>
+                <span class="output-message">${line.message}</span>
+            `;
+            if (line.data) {
+                const jsonEl = document.createElement('div');
+                jsonEl.className = 'json-output';
+                jsonEl.textContent = JSON.stringify(line.data, null, 2);
+                lineEl.appendChild(jsonEl);
+            }
+            container.appendChild(lineEl);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateNetworkDisplay(request) {
+            const tbody = document.getElementById('networkTableBody');
+            const row = document.createElement('tr');
+
+            const statusClass = request.status >= 200 && request.status < 300 ? 'status-200' :
+                request.status >= 400 ? 'status-400' : 'status-500';
+
+            row.innerHTML = `
+                <td>${request.timestamp}</td>
+                <td>${request.method}</td>
+                <td title="${request.url}">${request.url.length > 50 ? request.url.substring(0, 50) + '...' : request.url}</td>
+                <td><span class="status-badge ${statusClass}">${request.status}</span></td>
+                <td>${request.size || '-'}</td>
+                <td>${request.duration || '-'}ms</td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        function updateStats() {
+            document.getElementById('requestCount').textContent = stats.requests;
+            document.getElementById('errorCount').textContent = stats.errors;
+            document.getElementById('avgResponseTime').textContent =
+                stats.requests > 0 ? Math.round(stats.responseTimeSum / stats.requests) + 'ms' : '0ms';
+
+            const sessionDuration = Math.floor((Date.now() - stats.sessionStart) / 1000);
+            const minutes = Math.floor(sessionDuration / 60);
+            const seconds = sessionDuration % 60;
+            document.getElementById('sessionTime').textContent =
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Update session time every second
+        setInterval(updateStats, 1000);
+
+        // Settings change handlers
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const setting = e.target.id;
+                const enabled = e.target.checked;
+                addOutputLine('info', `${setting} ${enabled ? 'enabled' : 'disabled'}`);
+
+                switch (setting) {
+                    case 'networkCapture':
+                        window.CAPTURE_NETWORK = enabled;
+                        break;
+                    case 'consoleCapture':
+                        // This would enable/disable console capture
+                        break;
+                    case 'errorLogging':
+                        // This would enable/disable error logging
+                        break;
+                    case 'performanceMonitor':
+                        // This would enable/disable performance monitoring
+                        break;
+                    case 'domRecording':
+                        // This would enable/disable DOM recording
+                        break;
+                }
+            });
+        });
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.tab;
+
+                // Update tab states
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                tab.classList.add('active');
+                document.getElementById(targetTab).classList.add('active');
+            });
+        });
+
+        // Action button handlers
+        const actions = {
+            error: () => {
+                const errorMsg = "Test error: Something went wrong!";
+                console.error(errorMsg);
+                addOutputLine('error', errorMsg);
+                stats.errors++;
+                updateStats();
+            },
+
+            warn: () => {
+                const warnMsg = "Test warning: This is a warning message";
+                console.warn(warnMsg);
+                addOutputLine('warn', warnMsg);
+            },
+
+            info: () => {
+                const infoMsg = "Test info: This is an information message";
+                console.info(infoMsg);
+                addOutputLine('info', infoMsg);
+            },
+
+            success: () => {
+                const successMsg = "Test success: Operation completed successfully";
+                console.log(successMsg);
+                addOutputLine('success', successMsg);
+            },
+
+            fetch: () => {
+                addOutputLine('info', 'Starting fetch request...');
+                const startTime = Date.now();
+
+                fetch('https://jsonplaceholder.typicode.com/posts/1')
+                    .then(response => {
+                        const duration = Date.now() - startTime;
+                        const request = {
+                            timestamp: getCurrentTime(),
+                            method: 'GET',
+                            url: 'https://jsonplaceholder.typicode.com/posts/1',
+                            status: response.status,
+                            duration: duration
+                        };
+
+                        stats.requests++;
+                        stats.responseTimeSum += duration;
+                        networkRequests.push(request);
+                        updateNetworkDisplay(request);
+                        updateStats();
+
+                        return response.json();
+                    })
+                    .then(data => {
+                        addOutputLine('success', 'Fetch request completed', data);
+                    })
+                    .catch(error => {
+                        addOutputLine('error', `Fetch error: ${error.message}`);
+                        stats.errors++;
+                        updateStats();
+                    });
+            },
+
+            xhr: () => {
+                addOutputLine('info', 'Starting XHR request...');
+                const startTime = Date.now();
+                const xhr = new XMLHttpRequest();
+
+                xhr.open('GET', 'https://jsonplaceholder.typicode.com/users/1');
+                xhr.onload = function () {
+                    const duration = Date.now() - startTime;
+                    const request = {
+                        timestamp: getCurrentTime(),
+                        method: 'GET',
+                        url: 'https://jsonplaceholder.typicode.com/users/1',
+                        status: xhr.status,
+                        duration: duration
+                    };
+
+                    stats.requests++;
+                    stats.responseTimeSum += duration;
+                    networkRequests.push(request);
+                    updateNetworkDisplay(request);
+                    updateStats();
+
+                    if (xhr.status === 200) {
+                        const data = JSON.parse(xhr.responseText);
+                        addOutputLine('success', 'XHR request completed', data);
+                    } else {
+                        addOutputLine('error', `XHR error: ${xhr.statusText}`);
+                        stats.errors++;
+                        updateStats();
+                    }
+                };
+
+                xhr.onerror = function () {
+                    addOutputLine('error', 'XHR network error');
+                    stats.errors++;
+                    updateStats();
+                };
+
+                xhr.send();
+            },
+
+            performance: () => {
+                addOutputLine('info', 'Running performance test...');
+                const start = performance.now();
+
+                // Simulate some work
+                let result = 0;
+                for (let i = 0; i < 1000000; i++) {
+                    result += Math.random();
+                }
+
+                const end = performance.now();
+                const duration = (end - start).toFixed(2);
+                addOutputLine('success', `Performance test completed in ${duration}ms`);
+            },
+
+            domManip: () => {
+                addOutputLine('info', 'Performing DOM manipulation...');
+
+                // Create a temporary element
+                const tempDiv = document.createElement('div');
+                tempDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; background: var(--accent); color: white; padding: 10px; border-radius: 6px; z-index: 9999;';
+                tempDiv.textContent = 'DOM manipulation test!';
+                document.body.appendChild(tempDiv);
+
+                // Remove it after 3 seconds
+                setTimeout(() => {
+                    document.body.removeChild(tempDiv);
+                    addOutputLine('success', 'DOM manipulation completed');
+                }, 3000);
+
+                addOutputLine('info', 'Temporary element added (will be removed in 3s)');
+            }
+        };
+
+        // Attach action button events
+        document.querySelectorAll('.action-button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.type;
+                if (actions[type]) {
+                    actions[type]();
+                } else if (btn.id === 'performanceBtn') {
+                    actions.performance();
+                } else if (btn.id === 'domManipBtn') {
+                    actions.domManip();
+                } else if (btn.id === 'consoleTestBtn') {
+                    // Test console.log forwarding
+                    console.log('TEST: This is a console.log message from test.html');
+                    console.info('TEST: This is a console.info message from test.html');
+                    console.warn('TEST: This is a console.warn message from test.html');
+                    console.error('TEST: This is a console.error message from test.html');
+                    addOutputLine('info', 'Console forwarding test messages sent');
+                }
+            });
+        });
+
+        // Clear functions
+        document.getElementById('clearOutput').addEventListener('click', () => {
+            document.getElementById('outputContent').innerHTML = '';
+            outputLines = [];
+            addOutputLine('info', 'Output cleared');
+        });
+
+        document.getElementById('clearConsole').addEventListener('click', () => {
+            document.getElementById('consoleContent').innerHTML = '';
+        });
+
+        document.getElementById('clearNetwork').addEventListener('click', () => {
+            document.getElementById('networkTableBody').innerHTML = '';
+            networkRequests = [];
+        });
+
+        document.getElementById('clearAllLogs').addEventListener('click', () => {
+            document.getElementById('outputContent').innerHTML = '';
+            document.getElementById('consoleContent').innerHTML = '';
+            document.getElementById('networkTableBody').innerHTML = '';
+            outputLines = [];
+            networkRequests = [];
+            addOutputLine('info', 'All logs cleared');
+        });
+
+        // Export logs
+        document.getElementById('exportLogs').addEventListener('click', () => {
+            const logData = {
+                timestamp: new Date().toISOString(),
+                outputLines: outputLines,
+                networkRequests: networkRequests,
+                stats: stats
+            };
+
+            const blob = new Blob([JSON.stringify(logData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `debug-logs-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            addOutputLine('success', 'Logs exported successfully');
+        });
+
+        // Connection logic
+        document.getElementById('startConnectButton').addEventListener('click', () => {
+            const cpidInput = document.getElementById('cpidInput');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+
+            if (cpidInput.value) {
+                console.log('🔧 Starting connection with CPID:', cpidInput.value);
+                localStorage.setItem('cpid', cpidInput.value);
+                localStorage.setItem('CPID', cpidInput.value); // Also set this for debugmodesdk
+
+                // Update connection status
+                statusIndicator.classList.add('connected');
+                statusText.textContent = 'Connected';
+
+                if (window.DEBUG_MODE && typeof window.DEBUG_MODE.startDebugSession === 'function') {
+                    console.log('🚀 Starting DEBUG_MODE session...');
+                    window.DEBUG_MODE.startDebugSession();
+                    addOutputLine('success', `Debug session started with CPID: ${cpidInput.value}`);
+
+                    // Test console forwarding immediately after connection
+                    setTimeout(() => {
+                        console.log(`Debug session waiting with CPID: ${cpidInput.value}`);
+                    }, 1000);
+                } else {
+                    console.error('❌ DEBUG_MODE not available');
+                    addOutputLine('warn', 'DEBUG_MODE not available, simulating connection');
+                }
+            } else {
+                addOutputLine('error', 'Please enter a valid CPID');
+            }
+        });
+
+        // Mobile responsive sidebar toggle
+        function setupMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+
+            function checkMobile() {
+                if (window.innerWidth <= 1024) {
+                    toggle.classList.remove('hidden');
+                    sidebar.classList.remove('open');
+                } else {
+                    toggle.classList.add('hidden');
+                    sidebar.classList.remove('open');
+                }
+            }
+
+            toggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+            });
+
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth <= 1024 &&
+                    !sidebar.contains(e.target) &&
+                    !toggle.contains(e.target) &&
+                    sidebar.classList.contains('open')) {
+                    sidebar.classList.remove('open');
+                }
+            });
+
+            window.addEventListener('resize', checkMobile);
+            checkMobile();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupMobileMenu();
+            addOutputLine('info', 'Debug console initialized');
+            updateStats();
+        });
+        window.PEER_AUTO_CONNECT = true;
+    </script>
+</body>
+
+</html>

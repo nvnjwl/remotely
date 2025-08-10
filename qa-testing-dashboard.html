@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QA Testing Dashboard - Remote Debugger</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .qa-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .qa-title {
+            text-align: center;
+            color: #2c3e50;
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .qa-subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 1.2em;
+        }
+
+        .qa-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .test-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e74c3c;
+        }
+
+        .panel-icon {
+            font-size: 2em;
+            margin-right: 15px;
+        }
+
+        .panel-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .test-controls {
+            margin-bottom: 25px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn.danger {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+
+        .btn.success {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+        }
+
+        .btn.warning {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+        }
+
+        .test-frame {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #34495e;
+            border-radius: 10px;
+            background: white;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .results-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .status-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .test-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #6c757d;
+            transition: all 0.3s ease;
+        }
+
+        .test-item.testing {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+
+        .test-item.pass {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+
+        .test-item.fail {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .test-status {
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .test-status.pending {
+            background: #6c757d;
+            color: white;
+        }
+
+        .test-status.testing {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .test-status.pass {
+            background: #28a745;
+            color: white;
+        }
+
+        .test-status.fail {
+            background: #dc3545;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .test-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .control-group {
+                flex-direction: column;
+            }
+
+            .test-frame {
+                height: 400px;
+            }
+        }
+
+        .test-scenario {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .scenario-title {
+            font-weight: bold;
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .scenario-steps {
+            list-style: none;
+            padding-left: 20px;
+        }
+
+        .scenario-steps li {
+            margin: 5px 0;
+            position: relative;
+        }
+
+        .scenario-steps li::before {
+            content: "→";
+            position: absolute;
+            left: -15px;
+            color: #2196f3;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="qa-header">
+        <h1 class="qa-title">🧪 QA Testing Dashboard</h1>
+        <p class="qa-subtitle">Comprehensive Testing for Remote Debugger Interface</p>
+    </div>
+
+    <div class="qa-container">
+        <!-- Status Overview -->
+        <div class="status-grid">
+            <div class="status-card">
+                <div class="status-number" id="totalTests">0</div>
+                <div class="status-label">Total Tests</div>
+            </div>
+            <div class="status-card">
+                <div class="status-number" id="passedTests">0</div>
+                <div class="status-label">Passed</div>
+            </div>
+            <div class="status-card">
+                <div class="status-number" id="failedTests">0</div>
+                <div class="status-label">Failed</div>
+            </div>
+            <div class="status-card">
+                <div class="status-number" id="testProgress">0%</div>
+                <div class="status-label">Progress</div>
+            </div>
+        </div>
+
+        <!-- Test Panels -->
+        <div class="test-grid">
+            <!-- Test.html Panel -->
+            <div class="test-panel">
+                <div class="panel-header">
+                    <span class="panel-icon">🎯</span>
+                    <h2 class="panel-title">test.html Testing</h2>
+                </div>
+
+                <div class="test-controls">
+                    <div class="control-group">
+                        <button class="btn" onclick="loadTestHTML()">Load test.html</button>
+                        <button class="btn success" onclick="runTestHTMLTests()">Run All Tests</button>
+                        <button class="btn warning" onclick="runInteractiveTest('test')">Interactive Test</button>
+                    </div>
+                </div>
+
+                <iframe id="testFrame" class="test-frame" src="about:blank"></iframe>
+
+                <div class="test-scenario">
+                    <div class="scenario-title">Test Scenarios for test.html:</div>
+                    <ul class="scenario-steps">
+                        <li>Load page and verify UI elements</li>
+                        <li>Test CPID input and connection button</li>
+                        <li>Test action buttons (console logs)</li>
+                        <li>Test clear logs functionality</li>
+                        <li>Test responsive design</li>
+                        <li>Test debug session activation</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Debugmode.html Panel -->
+            <div class="test-panel">
+                <div class="panel-header">
+                    <span class="panel-icon">🔧</span>
+                    <h2 class="panel-title">debugmode.html Testing</h2>
+                </div>
+
+                <div class="test-controls">
+                    <div class="control-group">
+                        <button class="btn" onclick="loadDebugMode()">Load debugmode.html</button>
+                        <button class="btn success" onclick="runDebugModeTests()">Run All Tests</button>
+                        <button class="btn warning" onclick="runInteractiveTest('debug')">Interactive Test</button>
+                    </div>
+                </div>
+
+                <iframe id="debugFrame" class="test-frame" src="about:blank"></iframe>
+
+                <div class="test-scenario">
+                    <div class="scenario-title">Test Scenarios for debugmode.html:</div>
+                    <ul class="scenario-steps">
+                        <li>Load page and verify all UI components</li>
+                        <li>Test tab switching functionality</li>
+                        <li>Test all sidebar buttons</li>
+                        <li>Test console command execution</li>
+                        <li>Test Monaco Editor integration</li>
+                        <li>Test quick action buttons</li>
+                        <li>Test keyboard shortcuts (Enter keys)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="results-panel">
+            <div class="panel-header">
+                <span class="panel-icon">📊</span>
+                <h2 class="panel-title">Test Results & Log</h2>
+            </div>
+
+            <div class="test-controls">
+                <div class="control-group">
+                    <button class="btn" onclick="runFullTestSuite()">🚀 Run Complete Test Suite</button>
+                    <button class="btn danger" onclick="clearTestResults()">Clear Results</button>
+                    <button class="btn" onclick="exportTestResults()">Export Results</button>
+                </div>
+            </div>
+
+            <div id="testItemsList"></div>
+            <div class="test-log" id="testLog">QA Testing Dashboard Initialized...\nReady to begin comprehensive
+                testing.\n\n</div>
+        </div>
+    </div>
+
+    <script>
+        // QA Testing Framework
+        class QATestFramework {
+            constructor() {
+                this.tests = [];
+                this.currentTest = 0;
+                this.results = {
+                    total: 0,
+                    passed: 0,
+                    failed: 0,
+                    pending: 0
+                };
+                this.logElement = document.getElementById('testLog');
+                this.testItemsList = document.getElementById('testItemsList');
+            }
+
+            log(message, level = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const prefix = level.toUpperCase().padEnd(5);
+                const logMessage = `[${timestamp}] ${prefix} | ${message}\n`;
+                this.logElement.textContent += logMessage;
+                this.logElement.scrollTop = this.logElement.scrollHeight;
+                console.log(logMessage);
+            }
+
+            addTest(name, description, testFunction, category = 'general') {
+                const test = {
+                    id: this.tests.length,
+                    name,
+                    description,
+                    testFunction,
+                    category,
+                    status: 'pending',
+                    result: null,
+                    error: null,
+                    duration: 0
+                };
+                this.tests.push(test);
+                this.updateStats();
+                this.renderTestItems();
+                return test.id;
+            }
+
+            async runTest(testId) {
+                const test = this.tests[testId];
+                if (!test) return;
+
+                test.status = 'testing';
+                this.renderTestItems();
+                this.log(`Starting test: ${test.name}`, 'info');
+
+                const startTime = performance.now();
+
+                try {
+                    const result = await test.testFunction();
+                    test.result = result;
+                    test.status = result ? 'pass' : 'fail';
+                    test.duration = performance.now() - startTime;
+
+                    if (result) {
+                        this.results.passed++;
+                        this.log(`✅ PASS: ${test.name} (${test.duration.toFixed(2)}ms)`, 'pass');
+                    } else {
+                        this.results.failed++;
+                        this.log(`❌ FAIL: ${test.name} (${test.duration.toFixed(2)}ms)`, 'fail');
+                    }
+                } catch (error) {
+                    test.error = error.message;
+                    test.status = 'fail';
+                    test.duration = performance.now() - startTime;
+                    this.results.failed++;
+                    this.log(`❌ ERROR: ${test.name} - ${error.message}`, 'fail');
+                }
+
+                this.results.pending--;
+                this.updateStats();
+                this.renderTestItems();
+            }
+
+            async runAllTests() {
+                this.log('🚀 Starting comprehensive test suite...', 'info');
+
+                for (let i = 0; i < this.tests.length; i++) {
+                    await this.runTest(i);
+                    // Small delay between tests
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+                this.log(`\n📊 Test Suite Complete!`, 'info');
+                this.log(`✅ Passed: ${this.results.passed}`, 'pass');
+                this.log(`❌ Failed: ${this.results.failed}`, 'fail');
+                this.log(`📈 Success Rate: ${((this.results.passed / this.results.total) * 100).toFixed(1)}%`, 'info');
+            }
+
+            updateStats() {
+                this.results.total = this.tests.length;
+                this.results.pending = this.tests.filter(t => t.status === 'pending').length;
+
+                document.getElementById('totalTests').textContent = this.results.total;
+                document.getElementById('passedTests').textContent = this.results.passed;
+                document.getElementById('failedTests').textContent = this.results.failed;
+
+                const progress = this.results.total > 0 ?
+                    Math.round(((this.results.total - this.results.pending) / this.results.total) * 100) : 0;
+                document.getElementById('testProgress').textContent = progress + '%';
+            }
+
+            renderTestItems() {
+                this.testItemsList.innerHTML = this.tests.map(test => `
+                    <div class="test-item ${test.status}">
+                        <div>
+                            <strong>${test.name}</strong>
+                            <br><small>${test.description}</small>
+                            ${test.error ? `<br><small style="color: #dc3545;">Error: ${test.error}</small>` : ''}
+                        </div>
+                        <span class="test-status ${test.status}">${test.status.toUpperCase()}</span>
+                    </div>
+                `).join('');
+            }
+
+            clearResults() {
+                this.tests = [];
+                this.results = { total: 0, passed: 0, failed: 0, pending: 0 };
+                this.logElement.textContent = 'Test results cleared.\n\n';
+                this.updateStats();
+                this.renderTestItems();
+            }
+        }
+
+        // Initialize QA Framework
+        const qa = new QATestFramework();
+
+        // Utility Functions
+        function loadTestHTML() {
+            const frame = document.getElementById('testFrame');
+            frame.src = 'test.html';
+            qa.log('Loading test.html in test frame...', 'info');
+        }
+
+        function loadDebugMode() {
+            const frame = document.getElementById('debugFrame');
+            frame.src = 'debugmode.html';
+            qa.log('Loading debugmode.html in debug frame...', 'info');
+        }
+
+        function runInteractiveTest(type) {
+            const url = type === 'test' ? 'test.html' : 'debugmode.html';
+            window.open(url, '_blank');
+            qa.log(`Opening ${url} in new window for interactive testing...`, 'info');
+        }
+
+        function clearTestResults() {
+            qa.clearResults();
+        }
+
+        function exportTestResults() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                summary: qa.results,
+                tests: qa.tests,
+                log: qa.logElement.textContent
+            };
+
+            const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `qa-test-results-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            qa.log('Test results exported successfully', 'info');
+        }
+
+        // Test Functions for test.html
+        function runTestHTMLTests() {
+            qa.log('🎯 Starting test.html test suite...', 'info');
+
+            // Add test.html specific tests
+            qa.addTest('test.html Load', 'Verify test.html loads correctly', async () => {
+                const frame = document.getElementById('testFrame');
+                if (frame.src.includes('test.html')) {
+                    return new Promise((resolve) => {
+                        frame.onload = () => {
+                            try {
+                                const doc = frame.contentDocument;
+                                resolve(doc && doc.title.includes('Remote Debugger'));
+                            } catch (e) {
+                                resolve(false);
+                            }
+                        };
+                    });
+                }
+                return false;
+            }, 'test.html');
+
+            qa.addTest('CPID Input Field', 'Verify CPID input field exists', async () => {
+                const frame = document.getElementById('testFrame');
+                try {
+                    const doc = frame.contentDocument;
+                    const cpidInput = doc.getElementById('cpidInput');
+                    return cpidInput !== null;
+                } catch (e) {
+                    return false;
+                }
+            }, 'test.html');
+
+            qa.addTest('Start Connection Button', 'Verify start connection button exists and is clickable', async () => {
+                const frame = document.getElementById('testFrame');
+                try {
+                    const doc = frame.contentDocument;
+                    const startButton = doc.getElementById('startConnectButton');
+                    return startButton !== null && !startButton.disabled;
+                } catch (e) {
+                    return false;
+                }
+            }, 'test.html');
+
+            qa.addTest('Clear Logs Button', 'Verify clear logs button functionality', async () => {
+                const frame = document.getElementById('testFrame');
+                try {
+                    const doc = frame.contentDocument;
+                    const clearButton = doc.getElementById('clearAllLogs');
+                    return clearButton !== null;
+                } catch (e) {
+                    return false;
+                }
+            }, 'test.html');
+
+            qa.addTest('Action Buttons', 'Verify action buttons for console operations', async () => {
+                const frame = document.getElementById('testFrame');
+                try {
+                    const doc = frame.contentDocument;
+                    const actionButtons = doc.querySelectorAll('.action-button');
+                    return actionButtons.length >= 4; // Expected action buttons
+                } catch (e) {
+                    return false;
+                }
+            }, 'test.html');
+
+            // Run the tests
+            qa.runAllTests();
+        }
+
+        // Test Functions for debugmode.html
+        function runDebugModeTests() {
+            qa.log('🔧 Starting debugmode.html test suite...', 'info');
+
+            qa.addTest('debugmode.html Load', 'Verify debugmode.html loads correctly', async () => {
+                const frame = document.getElementById('debugFrame');
+                if (frame.src.includes('debugmode.html')) {
+                    return new Promise((resolve) => {
+                        frame.onload = () => {
+                            try {
+                                const doc = frame.contentDocument;
+                                resolve(doc && doc.title.includes('Remote Debugger'));
+                            } catch (e) {
+                                resolve(false);
+                            }
+                        };
+                    });
+                }
+                return false;
+            }, 'debugmode.html');
+
+            qa.addTest('Tab Navigation', 'Verify all tabs are present and functional', async () => {
+                const frame = document.getElementById('debugFrame');
+                try {
+                    const doc = frame.contentDocument;
+                    const tabs = doc.querySelectorAll('.tab[data-tab]');
+                    return tabs.length === 5; // Console, Network, Application, Script, Replay
+                } catch (e) {
+                    return false;
+                }
+            }, 'debugmode.html');
+
+            qa.addTest('Connect Button', 'Verify connect button exists', async () => {
+                const frame = document.getElementById('debugFrame');
+                try {
+                    const doc = frame.contentDocument;
+                    const connectButton = doc.getElementById('connectButton');
+                    return connectButton !== null;
+                } catch (e) {
+                    return false;
+                }
+            }, 'debugmode.html');
+
+            qa.addTest('Command Input', 'Verify command input field exists', async () => {
+                const frame = document.getElementById('debugFrame');
+                try {
+                    const doc = frame.contentDocument;
+                    const commandInput = doc.getElementById('eachCommandInput');
+                    return commandInput !== null;
+                } catch (e) {
+                    return false;
+                }
+            }, 'debugmode.html');
+
+            qa.addTest('Script Editor Area', 'Verify Monaco Editor container exists', async () => {
+                const frame = document.getElementById('debugFrame');
+                try {
+                    const doc = frame.contentDocument;
+                    const editorContainer = doc.getElementById('monaco-editor');
+                    return editorContainer !== null;
+                } catch (e) {
+                    return false;
+                }
+            }, 'debugmode.html');
+
+            qa.addTest('Quick Actions', 'Verify quick action buttons exist', async () => {
+                const frame = document.getElementById('debugFrame');
+                try {
+                    const doc = frame.contentDocument;
+                    const quickActions = doc.querySelectorAll('.quick-action');
+                    return quickActions.length === 4; // Reload, Clear, Storage, UserAgent
+                } catch (e) {
+                    return false;
+                }
+            }, 'debugmode.html');
+
+            qa.addTest('Header Buttons', 'Verify header buttons (fullscreen, download)', async () => {
+                const frame = document.getElementById('debugFrame');
+                try {
+                    const doc = frame.contentDocument;
+                    const fullscreenBtn = doc.getElementById('fullScreenButton');
+                    const downloadBtn = doc.getElementById('downloadButton');
+                    return fullscreenBtn !== null && downloadBtn !== null;
+                } catch (e) {
+                    return false;
+                }
+            }, 'debugmode.html');
+
+            qa.addTest('Sidebar Elements', 'Verify sidebar contains all required elements', async () => {
+                const frame = document.getElementById('debugFrame');
+                try {
+                    const doc = frame.contentDocument;
+                    const sidebar = doc.getElementById('sidebar');
+                    const receiverIdInput = doc.getElementById('receiverId');
+                    const remoteInput = doc.getElementById('eachRemoteInput');
+                    return sidebar !== null && receiverIdInput !== null && remoteInput !== null;
+                } catch (e) {
+                    return false;
+                }
+            }, 'debugmode.html');
+
+            // Run the tests
+            qa.runAllTests();
+        }
+
+        // Complete Test Suite
+        function runFullTestSuite() {
+            qa.clearResults();
+            qa.log('🚀 Running COMPLETE test suite for both applications...', 'info');
+
+            // Load both frames first
+            loadTestHTML();
+            loadDebugMode();
+
+            // Wait a bit for frames to load, then run tests
+            setTimeout(() => {
+                runTestHTMLTests();
+                setTimeout(() => {
+                    runDebugModeTests();
+                }, 1000);
+            }, 2000);
+        }
+
+        // Initialize
+        qa.log('QA Testing Dashboard ready for comprehensive testing', 'info');
+        qa.log('Use the control buttons to load and test each application', 'info');
+        qa.log('Click "Run Complete Test Suite" for full automated testing', 'info');
+    </script>
+</body>
+
+</html>

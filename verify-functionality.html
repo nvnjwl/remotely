@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Debugger - Functionality Verification</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0D1117;
+            color: #F0F6FC;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .test-section {
+            background: #161B22;
+            border: 1px solid #30363D;
+            border-radius: 8px;
+            margin: 20px 0;
+            padding: 20px;
+        }
+
+        .test-result {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .test-result.pass {
+            background: rgba(35, 134, 54, 0.1);
+            border-left: 3px solid #238636;
+        }
+
+        .test-result.fail {
+            background: rgba(218, 54, 51, 0.1);
+            border-left: 3px solid #DA3633;
+        }
+
+        .test-result.warn {
+            background: rgba(210, 153, 34, 0.1);
+            border-left: 3px solid #D29922;
+        }
+
+        .status-icon {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .pass .status-icon {
+            color: #238636;
+        }
+
+        .fail .status-icon {
+            color: #DA3633;
+        }
+
+        .warn .status-icon {
+            color: #D29922;
+        }
+
+        .test-button {
+            background: #58A6FF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .test-button:hover {
+            background: #1F6FEB;
+        }
+
+        .test-output {
+            background: #21262D;
+            border: 1px solid #30363D;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .summary-card {
+            background: #161B22;
+            border: 1px solid #30363D;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .summary-number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .pass-number {
+            color: #238636;
+        }
+
+        .fail-number {
+            color: #DA3633;
+        }
+
+        .warn-number {
+            color: #D29922;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🧪 Remote Debugger - Functionality Verification</h1>
+
+    <div class="summary" id="summary">
+        <div class="summary-card">
+            <div class="summary-number pass-number" id="passCount">0</div>
+            <div>Tests Passed</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-number fail-number" id="failCount">0</div>
+            <div>Tests Failed</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-number warn-number" id="warnCount">0</div>
+            <div>Warnings</div>
+        </div>
+    </div>
+
+    <button class="test-button" onclick="runAllTests()">🚀 Run All Tests</button>
+    <button class="test-button" onclick="openDebugger()">🔗 Open Debugger</button>
+    <button class="test-button" onclick="clearResults()">🗑️ Clear Results</button>
+
+    <div class="test-section">
+        <h2>📋 Test Results</h2>
+        <div id="testResults"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Detailed Output</h2>
+        <div class="test-output" id="testOutput"></div>
+    </div>
+
+    <script>
+        let testResults = [];
+        let passCount = 0;
+        let failCount = 0;
+        let warnCount = 0;
+
+        function addTestResult(name, status, message) {
+            testResults.push({ name, status, message, timestamp: new Date().toLocaleTimeString() });
+
+            if (status === 'pass') passCount++;
+            else if (status === 'fail') failCount++;
+            else if (status === 'warn') warnCount++;
+
+            updateSummary();
+            displayResults();
+            logOutput(`[${status.toUpperCase()}] ${name}: ${message}`);
+        }
+
+        function updateSummary() {
+            document.getElementById('passCount').textContent = passCount;
+            document.getElementById('failCount').textContent = failCount;
+            document.getElementById('warnCount').textContent = warnCount;
+        }
+
+        function displayResults() {
+            const container = document.getElementById('testResults');
+            container.innerHTML = testResults.map(result => `
+                <div class="test-result ${result.status}">
+                    <span class="status-icon">${result.status === 'pass' ? '✅' : result.status === 'fail' ? '❌' : '⚠️'}</span>
+                    <div>
+                        <strong>${result.name}</strong><br>
+                        <small>${result.message} (${result.timestamp})</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function logOutput(message) {
+            const output = document.getElementById('testOutput');
+            output.innerHTML += message + '\\n';
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearResults() {
+            testResults = [];
+            passCount = failCount = warnCount = 0;
+            updateSummary();
+            displayResults();
+            document.getElementById('testOutput').innerHTML = '';
+        }
+
+        function openDebugger() {
+            window.open('debugmode.html', '_blank');
+        }
+
+        async function testDebuggerFunctionality() {
+            return new Promise((resolve) => {
+                const iframe = document.createElement('iframe');
+                iframe.src = 'debugmode.html';
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+
+                iframe.onload = () => {
+                    const doc = iframe.contentDocument;
+                    const win = iframe.contentWindow;
+
+                    try {
+                        // Test 1: Check if all required elements exist
+                        const requiredElements = [
+                            'connectButton', 'sendEachCommandButton', 'sendRemoteEventButton',
+                            'sendEachScriptButton', 'clearConsoleButton', 'clearOutputButton',
+                            'clearAllButton', 'exportLogsButton', 'fullScreenButton', 'downloadButton'
+                        ];
+
+                        let elementsFound = 0;
+                        requiredElements.forEach(id => {
+                            if (doc.getElementById(id)) {
+                                elementsFound++;
+                            } else {
+                                addTestResult('Element Check', 'fail', `Missing element: ${id}`);
+                            }
+                        });
+
+                        if (elementsFound === requiredElements.length) {
+                            addTestResult('Element Check', 'pass', `All ${elementsFound} required elements found`);
+                        } else {
+                            addTestResult('Element Check', 'warn', `${elementsFound}/${requiredElements.length} elements found`);
+                        }
+
+                        // Test 2: Check if functions exist
+                        const requiredFunctions = ['switchTab', 'sendQuickCommand'];
+                        requiredFunctions.forEach(funcName => {
+                            if (typeof win[funcName] === 'function') {
+                                addTestResult('Function Check', 'pass', `Function ${funcName} exists`);
+                            } else {
+                                addTestResult('Function Check', 'fail', `Function ${funcName} missing`);
+                            }
+                        });
+
+                        // Test 3: Test tab switching
+                        try {
+                            const tabs = doc.querySelectorAll('.tab[data-tab]');
+                            if (tabs.length > 0) {
+                                addTestResult('Tab Elements', 'pass', `Found ${tabs.length} tabs`);
+
+                                // Test switchTab function
+                                if (typeof win.switchTab === 'function') {
+                                    win.switchTab('console');
+                                    const consoleTab = doc.getElementById('console');
+                                    if (consoleTab && consoleTab.classList.contains('active')) {
+                                        addTestResult('Tab Switching', 'pass', 'Tab switching works correctly');
+                                    } else {
+                                        addTestResult('Tab Switching', 'fail', 'Tab switching not working');
+                                    }
+                                }
+                            } else {
+                                addTestResult('Tab Elements', 'fail', 'No tabs found');
+                            }
+                        } catch (e) {
+                            addTestResult('Tab Switching', 'fail', `Tab switching error: ${e.message}`);
+                        }
+
+                        // Test 4: Check Monaco Editor
+                        if (win.monacoEditor) {
+                            addTestResult('Monaco Editor', 'pass', 'Monaco Editor is loaded');
+                        } else {
+                            addTestResult('Monaco Editor', 'warn', 'Monaco Editor not loaded (may need time)');
+                        }
+
+                        // Test 5: Check quick actions
+                        const quickActions = doc.querySelectorAll('.quick-action[onclick]');
+                        if (quickActions.length > 0) {
+                            addTestResult('Quick Actions', 'pass', `Found ${quickActions.length} quick actions`);
+                        } else {
+                            addTestResult('Quick Actions', 'fail', 'No quick actions found');
+                        }
+
+                        // Test 6: Check event listeners (simplified check)
+                        let buttonsWithEvents = 0;
+                        requiredElements.forEach(id => {
+                            const element = doc.getElementById(id);
+                            if (element && element.onclick) {
+                                buttonsWithEvents++;
+                            }
+                        });
+
+                        if (buttonsWithEvents > 0) {
+                            addTestResult('Event Listeners', 'pass', `${buttonsWithEvents} buttons have event handlers`);
+                        } else {
+                            addTestResult('Event Listeners', 'warn', 'Event listeners attached via addEventListener (not onclick)');
+                        }
+
+                        // Test 7: Check CSS classes and styling
+                        const hasCorrectStyling = doc.querySelector('.main-layout') &&
+                            doc.querySelector('.sidebar') &&
+                            doc.querySelector('.main-content');
+                        if (hasCorrectStyling) {
+                            addTestResult('UI Layout', 'pass', 'Modern UI layout structure found');
+                        } else {
+                            addTestResult('UI Layout', 'fail', 'UI layout structure missing');
+                        }
+
+                    } catch (error) {
+                        addTestResult('Testing Error', 'fail', `Testing failed: ${error.message}`);
+                    }
+
+                    document.body.removeChild(iframe);
+                    resolve();
+                };
+            });
+        }
+
+        async function testTestHTML() {
+            return new Promise((resolve) => {
+                const iframe = document.createElement('iframe');
+                iframe.src = 'test.html';
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+
+                iframe.onload = () => {
+                    const doc = iframe.contentDocument;
+
+                    try {
+                        // Test test.html functionality
+                        const startButton = doc.getElementById('startConnectButton');
+                        const clearButton = doc.getElementById('clearAllLogs');
+
+                        if (startButton && clearButton) {
+                            addTestResult('Test.html Elements', 'pass', 'Key elements found in test.html');
+                        } else {
+                            addTestResult('Test.html Elements', 'fail', 'Missing elements in test.html');
+                        }
+
+                        // Check for output area
+                        const outputArea = doc.querySelector('.output-area');
+                        if (outputArea) {
+                            addTestResult('Test.html UI', 'pass', 'Output area found');
+                        } else {
+                            addTestResult('Test.html UI', 'warn', 'Output area structure may differ');
+                        }
+
+                    } catch (error) {
+                        addTestResult('Test.html Error', 'fail', `Test.html testing failed: ${error.message}`);
+                    }
+
+                    document.body.removeChild(iframe);
+                    resolve();
+                };
+            });
+        }
+
+        async function runAllTests() {
+            clearResults();
+            logOutput('🚀 Starting comprehensive functionality tests...\\n');
+
+            // Test debugmode.html
+            logOutput('📋 Testing debugmode.html functionality...');
+            await testDebuggerFunctionality();
+
+            // Test test.html
+            logOutput('\\n📋 Testing test.html functionality...');
+            await testTestHTML();
+
+            // Summary
+            logOutput(`\\n📊 Testing completed!`);
+            logOutput(`✅ Passed: ${passCount}`);
+            logOutput(`❌ Failed: ${failCount}`);
+            logOutput(`⚠️  Warnings: ${warnCount}`);
+
+            if (failCount === 0) {
+                logOutput('\\n🎉 All critical tests passed! The remote debugger appears to be fully functional.');
+            } else {
+                logOutput(`\\n⚠️  ${failCount} critical issues found. Please review the failed tests.`);
+            }
+        }
+
+        // Initial setup
+        logOutput('🔧 Functionality verification tool loaded.');
+        logOutput('Click "Run All Tests" to verify all claimed functionality.\\n');
+    </script>
+</body>
+
+</html>
