@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Target Test Page</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>body { font-family: system-ui, sans-serif; padding:1rem; } button { margin:.25rem; }</style>
+</head>
+<body>
+  <h1>Target Test Page</h1>
+  <p>This page simulates the target application being remotely debugged.</p>
+  <div id="actions">
+    <button id="log">Console Log</button>
+    <button id="warn">Console Warn</button>
+    <button id="error">Console Error</button>
+    <button id="fetch">Trigger Fetch</button>
+    <button id="xhr">Trigger XHR</button>
+    <button id="storage">Update localStorage</button>
+    <button id="cmd">Simulate Command Result</button>
+  </div>
+
+  <script type="module" src="/src/sdk/index.js"></script>
+  <script type="module">
+    // Auto start debug session
+    window.addEventListener('DOMContentLoaded', () => {
+      const cpid = localStorage.getItem('CPID') || 'sdk-demo';
+      localStorage.setItem('CPID', cpid);
+      if(window.DEBUG_MODE){ window.DEBUG_MODE.startDebugSession({ selfId: cpid, network:true, storage:true, rrweb:true }); }
+    });
+    // Demo interactions
+    log.onclick = () => console.log('Test log', Date.now());
+    warn.onclick = () => console.warn('Test warn', Math.random());
+    error.onclick = () => console.error('Test error', new Error('Boom'));
+    fetch.onclick = () => fetch('https://jsonplaceholder.typicode.com/todos/1').then(r=>r.json()).then(d=>console.info('fetch data', d));
+    xhr.onclick = () => { const x = new XMLHttpRequest(); x.open('GET','https://jsonplaceholder.typicode.com/posts/1'); x.onload = () => console.log('xhr data', x.responseText.slice(0,40)); x.send(); };
+    storage.onclick = () => { localStorage.setItem('demoKey', 'v-' + Date.now()); };
+  cmd.onclick = () => { console.log('Command simulation placeholder'); };
+  </script>
+</body>
+</html>

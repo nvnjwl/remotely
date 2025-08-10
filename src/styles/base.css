@@ -1,0 +1,29 @@
+:root { --bg: #111; --fg: #eee; --accent: #4aa3ff; --success:#28c04a; --warning:#d8a800; --error:#e54848; --muted:#555; font-family: system-ui, sans-serif; }
+#remote-debugger { background:#1b1b1b; color:var(--fg); font-size:14px; line-height:1.4; min-height:100vh; }
+.status-bar { display:flex; gap:.5rem; align-items:center; padding:.5rem .75rem; background:#222; border-bottom:1px solid #333; }
+.status-bar input { background:#000; color:var(--fg); border:1px solid #333; padding:.35rem .5rem; }
+.status-bar button { background:var(--accent); color:#fff; border:none; padding:.4rem .75rem; cursor:pointer; }
+.status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.status-dot.disconnected { background: var(--muted); }
+.status-dot.ready, .status-dot.connecting { background: var(--warning); animation: pulse 2s infinite; }
+.status-dot.connected { background: var(--success); }
+.status-dot.error { background: var(--error); animation: pulse 1s infinite; }
+@keyframes pulse { 0%{ opacity:.4;} 50%{opacity:1;} 100%{opacity:.4;} }
+.tab-bar { display:flex; gap:.25rem; padding:.25rem .5rem; background:#181818; border-bottom:1px solid #252525; }
+.tab-bar button { background:#262626; color:var(--fg); border:1px solid #333; padding:.4rem .75rem; cursor:pointer; }
+.tab-bar button.active { background:var(--accent); }
+.tab-panels { padding:.75rem; }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+.console-panel { max-height:60vh; overflow:auto; }
+.log-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.25rem; }
+.log-item { font-family:monospace; }
+.log-item.error { color: var(--error); }
+.log-item.warn { color: var(--warning); }
+table { width:100%; border-collapse: collapse; font-size:12px; }
+th, td { padding:4px 6px; border:1px solid #333; text-align:left; }
+.network-panel { max-height:60vh; overflow:auto; }
+.storage-panel { max-height:60vh; overflow:auto; }
+.command-panel textarea { background:#111; color:var(--fg); border:1px solid #333; font-family:monospace; }
+.command-panel button { background:var(--accent); border:none; color:#fff; cursor:pointer; }
+.replay-panel .rrweb-player { background:#000; min-height:200px; margin-top:.5rem; }

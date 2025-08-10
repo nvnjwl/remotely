@@ -1,0 +1,4119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Remote Debugger - Controller Dashboard</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+	<link
+		href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+		rel="stylesheet">
+	<link rel="stylesheet" href="./libs/playerstyle.css">
+	<script src="./libs/lz-string.min.js"></script>
+	<script src="./libs/peerjs.min.js"></script>
+	<script src="./libs/rrweb.js"></script>
+
+	<script src="./scripts/template.js"></script>
+	<script src="./scripts/cookie_script.js"></script>
+	<script src="./scripts/api_base_update.js"></script>
+	<script src="./scripts/custom_script.js"></script>
+	<script>
+		// Initialize script templates after all files are loaded
+		document.addEventListener('DOMContentLoaded', function () {
+			// Update templates with loaded code
+			if (window.SCRIPT_TEMPLATES && window.SCRIPT_TEMPLATES_LIST) {
+				Object.keys(window.SCRIPT_TEMPLATES_LIST).forEach(key => {
+					if (window.SCRIPT_TEMPLATES[key]) {
+						window.SCRIPT_TEMPLATES[key].code = window.SCRIPT_TEMPLATES_LIST[key];
+					}
+				});
+				console.log('✅ Script templates loaded:', Object.keys(window.SCRIPT_TEMPLATES));
+			}
+		});
+		window.PEER_AUTO_CONNECT = false;
+	</script>
+
+	<style>
+		:root {
+			--bg-primary: #0D1117;
+			--bg-secondary: #161B22;
+			--bg-tertiary: #21262D;
+			--bg-accent: #30363D;
+			--bg-card: #1C2128;
+			--accent: #58A6FF;
+			--accent-hover: #1F6FEB;
+			--success: #238636;
+			--warning: #D29922;
+			--error: #DA3633;
+			--info: #1F6FEB;
+			--text-primary: #F0F6FC;
+			--text-secondary: #8B949E;
+			--text-muted: #6E7681;
+			--border: #30363D;
+			--border-hover: #58A6FF;
+			--shadow: 0 8px 24px rgba(1, 4, 9, 0.8);
+			--shadow-lg: 0 16px 64px rgba(1, 4, 9, 0.9);
+			--gradient-primary: linear-gradient(135deg, var(--accent) 0%, #7C3AED 100%);
+			--gradient-success: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+			--gradient-warning: linear-gradient(135deg, var(--warning) 0%, #F59E0B 100%);
+			--gradient-error: linear-gradient(135deg, var(--error) 0%, #DC2626 100%);
+		}
+
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		html,
+		body {
+			height: 100vh;
+			font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			background: var(--bg-primary);
+			color: var(--text-primary);
+			overflow-x: hidden;
+		}
+
+		.main-layout {
+			display: grid;
+			grid-template-columns: 350px 1fr;
+			grid-template-rows: 60px 1fr;
+			grid-template-areas:
+				"header header"
+				"sidebar main";
+			height: 100vh;
+			gap: 0;
+		}
+
+		/* Header */
+		.header {
+			grid-area: header;
+			background: var(--bg-secondary);
+			border-bottom: 1px solid var(--border);
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 0 24px;
+			position: sticky;
+			top: 0;
+			z-index: 100;
+		}
+
+		.header-left {
+			display: flex;
+			align-items: center;
+			gap: 20px;
+		}
+
+		.logo {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			font-weight: 700;
+			font-size: 1.2em;
+			color: var(--accent);
+		}
+
+		.logo i {
+			font-size: 1.4em;
+			background: var(--gradient-primary);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+		}
+
+		.connection-badge {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			padding: 8px 16px;
+			background: var(--bg-tertiary);
+			border-radius: 12px;
+			font-size: 0.9em;
+			font-weight: 500;
+			border: 1px solid var(--border);
+		}
+
+		.status-dot {
+			width: 10px;
+			height: 10px;
+			border-radius: 50%;
+			background: var(--text-muted);
+			transition: all 0.3s ease;
+		}
+
+		.status-dot.disconnected {
+			background: var(--text-muted);
+			animation: none;
+		}
+
+		.status-dot.connecting {
+			background: var(--warning);
+			animation: pulse 2s infinite;
+		}
+
+		.status-dot.connected {
+			background: var(--success);
+			animation: none;
+		}
+
+		.status-dot.error {
+			background: var(--error);
+			animation: pulse 1s infinite;
+		}
+
+		.header-right {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+		}
+
+		.header-button {
+			width: 40px;
+			height: 40px;
+			border: none;
+			background: var(--bg-tertiary);
+			color: var(--text-secondary);
+			border-radius: 10px;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: all 0.2s ease;
+			border: 1px solid var(--border);
+		}
+
+		.header-button:hover {
+			background: var(--bg-accent);
+			color: var(--text-primary);
+			border-color: var(--border-hover);
+		}
+
+		/* DevTools Banner */
+		.devtools-banner {
+			background: linear-gradient(135deg, rgba(88, 166, 255, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
+			border-bottom: 1px solid rgba(88, 166, 255, 0.2);
+			padding: 12px 32px;
+			position: relative;
+			backdrop-filter: blur(10px);
+		}
+
+		.banner-content {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 16px;
+			max-width: 100%;
+		}
+
+		.banner-icon {
+			color: var(--accent);
+			font-size: 1.2em;
+			flex-shrink: 0;
+		}
+
+		.banner-text {
+			flex: 1;
+			min-width: 0;
+		}
+
+		.banner-title {
+			font-weight: 600;
+			color: var(--text-primary);
+			font-size: 0.9em;
+			margin-bottom: 2px;
+		}
+
+		.banner-description {
+			color: var(--text-secondary);
+			font-size: 0.8em;
+			line-height: 1.3;
+		}
+
+		.banner-actions {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			flex-shrink: 0;
+		}
+
+		.banner-button {
+			padding: 6px 12px;
+			border: none;
+			border-radius: 6px;
+			font-size: 0.75em;
+			font-weight: 500;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			display: flex;
+			align-items: center;
+			gap: 4px;
+		}
+
+		.banner-button.primary {
+			background: var(--accent);
+			color: white;
+		}
+
+		.banner-button.primary:hover {
+			background: var(--accent-hover);
+		}
+
+		.banner-button.close {
+			background: transparent;
+			color: var(--text-secondary);
+			padding: 6px;
+		}
+
+		.banner-button.close:hover {
+			background: rgba(255, 255, 255, 0.1);
+			color: var(--text-primary);
+		}
+
+		.devtools-banner.hidden {
+			display: none;
+		}
+
+		/* Sidebar */
+		.sidebar {
+			grid-area: sidebar;
+			background: var(--bg-secondary);
+			border-right: 1px solid var(--border);
+			overflow-y: auto;
+			display: flex;
+			flex-direction: column;
+			padding: 16px 0;
+		}
+
+		.sidebar-section {
+			padding: 0 16px 24px 16px;
+			border-bottom: 1px solid var(--border);
+		}
+
+		.sidebar-section:last-child {
+			border-bottom: none;
+		}
+
+		.section-header {
+			font-size: 0.85em;
+			font-weight: 600;
+			color: var(--text-secondary);
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			margin-bottom: 20px;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.form-group {
+			margin-bottom: 20px;
+		}
+
+		.form-label {
+			display: block;
+			font-size: 0.9em;
+			font-weight: 500;
+			color: var(--text-secondary);
+			margin-bottom: 8px;
+		}
+
+		.form-input {
+			width: 100%;
+			padding: 12px 16px;
+			background: var(--bg-tertiary);
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			color: var(--text-primary);
+			font-size: 0.9em;
+			font-family: 'JetBrains Mono', monospace;
+			transition: all 0.2s ease;
+		}
+
+		.form-input:focus {
+			outline: none;
+			border-color: var(--accent);
+			box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+		}
+
+		.primary-button {
+			width: 100%;
+			padding: 14px 20px;
+			background: var(--gradient-primary);
+			border: none;
+			border-radius: 12px;
+			color: white;
+			font-weight: 600;
+			font-size: 0.9em;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 8px;
+		}
+
+		.primary-button:hover {
+			transform: translateY(-2px);
+			box-shadow: var(--shadow);
+		}
+
+		.secondary-button {
+			width: 100%;
+			padding: 12px 16px;
+			background: var(--bg-tertiary);
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			color: var(--text-primary);
+			font-weight: 500;
+			font-size: 0.85em;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 8px;
+			margin-bottom: 12px;
+		}
+
+		.secondary-button:hover {
+			background: var(--bg-accent);
+			border-color: var(--border-hover);
+		}
+
+		.control-panel {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 12px;
+			margin-top: 16px;
+		}
+
+		.quick-action {
+			padding: 10px 12px;
+			background: var(--bg-tertiary);
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			color: var(--text-primary);
+			font-size: 0.8em;
+			cursor: pointer;
+			text-align: center;
+			transition: all 0.2s ease;
+		}
+
+		.quick-action:hover {
+			background: var(--bg-accent);
+			border-color: var(--border-hover);
+		}
+
+		/* Main Content */
+		.main-content {
+			grid-area: main;
+			display: flex;
+			flex-direction: column;
+			/* overflow: hidden; */
+		}
+
+		.tabs-header {
+			background: var(--bg-secondary);
+			border-bottom: 1px solid var(--border);
+			display: flex;
+			align-items: center;
+			padding: 0 16px;
+			gap: 2px;
+		}
+
+		.tab {
+			padding: 12px 16px;
+			background: none;
+			border: none;
+			color: var(--text-secondary);
+			font-weight: 500;
+			font-size: 0.85em;
+			cursor: pointer;
+			border-bottom: 2px solid transparent;
+			transition: all 0.2s ease;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			border-radius: 8px 8px 0 0;
+		}
+
+		.tab.active {
+			color: var(--accent);
+			background: var(--bg-primary);
+			border-bottom-color: var(--accent);
+		}
+
+		.tab:hover:not(.active) {
+			color: var(--text-primary);
+			background: var(--bg-tertiary);
+		}
+
+		.tab-content {
+			flex: 1;
+			overflow: hidden;
+			display: none;
+			flex-direction: column;
+			background: var(--bg-primary);
+		}
+
+		.tab-content.active {
+			display: flex;
+		}
+
+		.content-area {
+			flex: 1;
+			overflow: auto;
+			padding: 16px;
+		}
+
+		/* Make DOM Replay edge-to-edge */
+		#replay .content-area {
+			padding: 0;
+		}
+
+		#replay .replay-section {
+			background: none;
+			border-radius: 0;
+			border: none;
+			margin-bottom: 0;
+			box-shadow: none;
+			height: 100%;
+			display: flex;
+			flex-direction: column;
+		}
+
+		#replay .replay-container {
+			flex: 1;
+			border-radius: 0;
+		}
+
+		/* Ensure replay tab fills full height */
+		#replay {
+			flex-direction: column;
+			height: 100%;
+		}
+
+		#replay .content-area {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+		}
+
+		/* Command Interface */
+		.command-section {
+			background: var(--bg-card);
+			border-radius: 12px;
+			padding: 16px;
+			margin-bottom: 16px;
+			border: 1px solid var(--border);
+		}
+
+		.command-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-bottom: 12px;
+		}
+
+		.command-title {
+			font-size: 1.1em;
+			font-weight: 600;
+			color: var(--text-primary);
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.command-controls {
+			display: flex;
+			gap: 8px;
+		}
+
+		.icon-button {
+			width: 36px;
+			height: 36px;
+			border: none;
+			background: var(--bg-tertiary);
+			color: var(--text-secondary);
+			border-radius: 8px;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: all 0.2s ease;
+			border: 1px solid var(--border);
+		}
+
+		.icon-button:hover {
+			background: var(--bg-accent);
+			color: var(--text-primary);
+			border-color: var(--border-hover);
+		}
+
+		.command-input-group {
+			display: flex;
+			gap: 8px;
+			margin-bottom: 12px;
+		}
+
+		.command-input {
+			flex: 1;
+			padding: 10px 14px;
+			background: var(--bg-tertiary);
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			color: var(--text-primary);
+			font-size: 0.9em;
+			font-family: 'JetBrains Mono', monospace;
+			transition: all 0.2s ease;
+		}
+
+		.command-input:focus {
+			outline: none;
+			border-color: var(--accent);
+			box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+		}
+
+		.command-button {
+			padding: 10px 16px;
+			background: var(--gradient-primary);
+			border: none;
+			border-radius: 8px;
+			color: white;
+			font-weight: 500;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			white-space: nowrap;
+		}
+
+		.command-button:hover {
+			transform: translateY(-1px);
+			box-shadow: 0 4px 12px rgba(88, 166, 255, 0.3);
+		}
+
+		/* Output Display - Chrome DevTools Style */
+		.output-container {
+			background: var(--bg-card);
+			border-radius: 8px;
+			border: 1px solid var(--border);
+			overflow: hidden;
+			margin-bottom: 16px;
+			display: flex;
+			flex-direction: column;
+			max-height: calc(100vh - 300px);
+		}
+
+		.output-header {
+			padding: 12px 16px;
+			background: var(--bg-secondary);
+			border-bottom: 1px solid var(--border);
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.output-title {
+			font-weight: 600;
+			font-size: 0.9em;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.output-content {
+			padding: 8px;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.8em;
+			line-height: 1.4;
+			min-height: 200px;
+			max-height: calc(100vh - 400px);
+			max-width: 100%;
+			overflow: auto;
+			background: var(--bg-primary);
+			border: 1px solid var(--border);
+			border-radius: 4px;
+			/* Chrome DevTools style scrolling */
+			scrollbar-width: thin;
+			scrollbar-color: var(--text-secondary) var(--bg-tertiary);
+		}
+
+		/* Webkit scrollbar styling for Chrome DevTools look */
+		.output-content::-webkit-scrollbar {
+			width: 12px;
+			height: 12px;
+		}
+
+		.output-content::-webkit-scrollbar-track {
+			background: var(--bg-tertiary);
+			border-radius: 4px;
+		}
+
+		.output-content::-webkit-scrollbar-thumb {
+			background: var(--text-secondary);
+			border-radius: 4px;
+			border: 2px solid var(--bg-tertiary);
+		}
+
+		.output-content::-webkit-scrollbar-thumb:hover {
+			background: var(--text-primary);
+		}
+
+		.output-content::-webkit-scrollbar-corner {
+			background: var(--bg-tertiary);
+		}
+
+		.log-line {
+			display: flex;
+			align-items: flex-start;
+			gap: 8px;
+			margin-bottom: 2px;
+			padding: 4px 8px;
+			border-radius: 3px;
+			transition: background-color 0.1s ease;
+			border-left: 3px solid transparent;
+			word-wrap: break-word;
+			overflow-wrap: break-word;
+			max-width: 100%;
+		}
+
+		.log-line:hover {
+			background: var(--bg-secondary);
+		}
+
+		/* DevTools-style log level indicators */
+		.log-line.log-info {
+			border-left-color: var(--info);
+		}
+
+		.log-line.log-warn {
+			border-left-color: var(--warning);
+			background: rgba(255, 193, 7, 0.05);
+		}
+
+		.log-line.log-error {
+			border-left-color: var(--error);
+			background: rgba(220, 53, 69, 0.05);
+		}
+
+		.log-line.log-success {
+			border-left-color: var(--success);
+			background: rgba(40, 167, 69, 0.05);
+		}
+
+		.log-timestamp {
+			color: var(--text-muted);
+			font-size: 0.75em;
+			min-width: 60px;
+			flex-shrink: 0;
+			user-select: none;
+		}
+
+		.log-type {
+			min-width: 50px;
+			font-weight: 600;
+			text-transform: uppercase;
+			font-size: 0.7em;
+			flex-shrink: 0;
+			user-select: none;
+		}
+
+		.log-type.error {
+			color: var(--error);
+		}
+
+		.log-type.warn {
+			color: var(--warning);
+		}
+
+		.log-type.info {
+			color: var(--info);
+		}
+
+		.log-type.success {
+			color: var(--success);
+		}
+
+		.log-message {
+			flex: 1;
+			word-break: break-word;
+			overflow-wrap: break-word;
+			white-space: pre-wrap;
+			max-width: calc(100% - 120px);
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		/* Expandable log message for long content */
+		.log-message.expanded {
+			white-space: pre-wrap;
+			overflow: visible;
+			text-overflow: unset;
+		}
+
+		/* Console Output Styles - Chrome DevTools inspired */
+		.console-log,
+		.console-info,
+		.console-warn,
+		.console-error {
+			padding: 4px 8px;
+			margin: 1px 0;
+			border-radius: 3px;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.8em;
+			line-height: 1.5;
+			border-left: 3px solid;
+			background: rgba(255, 255, 255, 0.02);
+		}
+
+		.console-log {
+			border-left-color: var(--text-secondary);
+			color: var(--text-primary);
+		}
+
+		.console-info {
+			border-left-color: var(--info);
+			color: var(--info);
+		}
+
+		.console-warn {
+			border-left-color: var(--warning);
+			color: var(--warning);
+			background: rgba(255, 193, 7, 0.1);
+		}
+
+		.console-error {
+			border-left-color: var(--error);
+			color: var(--error);
+			background: rgba(220, 53, 69, 0.1);
+		}
+
+		.json-display {
+			background: var(--bg-secondary);
+			padding: 16px;
+			border-radius: 8px;
+			border-left: 3px solid var(--accent);
+			margin: 12px 0;
+			overflow-x: auto;
+			font-size: 0.8em;
+		}
+
+		/* Monaco Editor - Dynamic Height Container */
+		.editor-container {
+			background: var(--bg-card);
+			border-radius: 16px;
+			border: 1px solid var(--border);
+			overflow: hidden;
+			margin-bottom: 24px;
+			position: relative;
+			min-height: 200px;
+			max-height: 600px;
+			display: flex;
+			flex-direction: column;
+		}
+
+		.editor-header {
+			padding: 16px 24px;
+			background: var(--bg-secondary);
+			border-bottom: 1px solid var(--border);
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			flex-shrink: 0;
+			z-index: 10;
+		}
+
+		/* Dynamic scrollable wrapper */
+		.editor-scroll-container {
+			flex: 1;
+			overflow: auto;
+			position: relative;
+			background: var(--background-primary);
+			min-height: 200px;
+			max-height: 450px;
+			border: 1px solid var(--border);
+			border-radius: 8px;
+		}
+
+		.editor-wrapper {
+			height: auto;
+			min-height: 200px;
+			width: 100%;
+			position: relative;
+		}
+
+		/* Monaco Editor - Dynamic Height */
+		.editor-wrapper .monaco-editor {
+			height: auto !important;
+			min-height: 200px !important;
+			width: 100% !important;
+		}
+
+		.editor-wrapper .monaco-editor .overflow-guard {
+			overflow: hidden !important;
+		}
+
+		.editor-wrapper .monaco-scrollable-element {
+			overflow: hidden !important;
+		}
+
+		/* Hide Monaco scrollbars completely */
+		.editor-wrapper .monaco-scrollable-element>.scrollbar {
+			display: none !important;
+		}
+
+		.editor-wrapper .monaco-scrollable-element>.invisible {
+			display: none !important;
+		}
+
+		/* Custom outer scrollbar styling */
+		.editor-scroll-container::-webkit-scrollbar {
+			width: 8px;
+			height: 8px;
+		}
+
+		.editor-scroll-container::-webkit-scrollbar-track {
+			background: var(--background-secondary);
+			border-radius: 4px;
+		}
+
+		.editor-scroll-container::-webkit-scrollbar-thumb {
+			background: var(--accent);
+			border-radius: 4px;
+			border: 1px solid var(--background-secondary);
+		}
+
+		.editor-scroll-container::-webkit-scrollbar-thumb:hover {
+			background: var(--accent-hover);
+		}
+
+		/* Ensure buttons are visible with minimal scrolling */
+		.editor-footer {
+			flex-shrink: 0;
+			margin-top: auto;
+		}
+
+		/* Network Panel - Chrome DevTools Style */
+		.network-controls-panel {
+			background: var(--bg-secondary);
+			border-bottom: 1px solid var(--border);
+			padding: 8px 12px;
+		}
+
+		.network-toolbar {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+		}
+
+		.network-toolbar-left {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.network-toolbar-right {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.network-separator {
+			width: 1px;
+			height: 24px;
+			background: var(--border);
+			margin: 0 4px;
+		}
+
+		.filter-button {
+			padding: 6px 12px;
+			border: 1px solid var(--border);
+			border-radius: 4px;
+			background: var(--bg-tertiary);
+			color: var(--text-secondary);
+			font-size: 0.75em;
+			font-weight: 500;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			display: flex;
+			align-items: center;
+			gap: 4px;
+		}
+
+		.filter-button:hover {
+			background: var(--bg-accent);
+			color: var(--text-primary);
+		}
+
+		.filter-button.active {
+			background: var(--accent);
+			color: white;
+			border-color: var(--accent);
+		}
+
+		.filter-button i {
+			font-size: 0.9em;
+		}
+
+		.network-search {
+			position: relative;
+			display: flex;
+			align-items: center;
+		}
+
+		.network-search i {
+			position: absolute;
+			left: 8px;
+			color: var(--text-secondary);
+			font-size: 0.8em;
+			z-index: 1;
+		}
+
+		.network-search input {
+			padding: 6px 8px 6px 28px;
+			border: 1px solid var(--border);
+			border-radius: 4px;
+			background: var(--bg-tertiary);
+			color: var(--text-primary);
+			font-size: 0.8em;
+			width: 200px;
+			transition: all 0.2s ease;
+		}
+
+		.network-search input:focus {
+			outline: none;
+			border-color: var(--accent);
+			box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.1);
+		}
+
+		/* Network Table Wrapper */
+		.network-table-wrapper {
+			flex: 1;
+			overflow: auto;
+			max-height: calc(100vh - 200px);
+		}
+
+		.network-table-container {
+			background: var(--bg-card);
+			border-radius: 8px;
+			border: 1px solid var(--border);
+			overflow: hidden;
+		}
+
+		.network-table {
+			width: 100%;
+			border-collapse: collapse;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.75em;
+			min-width: 1000px;
+		}
+
+		.network-table th {
+			background: var(--bg-secondary);
+			padding: 8px 12px;
+			text-align: left;
+			border-bottom: 1px solid var(--border);
+			font-weight: 600;
+			color: var(--text-secondary);
+			position: sticky;
+			top: 0;
+			z-index: 10;
+			user-select: none;
+			cursor: pointer;
+			transition: background-color 0.2s ease;
+		}
+
+		.network-table th:hover {
+			background: var(--bg-accent);
+		}
+
+		.network-table th.sortable {
+			position: relative;
+		}
+
+		.network-table th .sort-icon {
+			margin-left: 4px;
+			font-size: 0.7em;
+			opacity: 0.5;
+			transition: opacity 0.2s ease;
+		}
+
+		.network-table th.sorted-asc .sort-icon {
+			opacity: 1;
+			transform: rotate(180deg);
+		}
+
+		.network-table th.sorted-desc .sort-icon {
+			opacity: 1;
+		}
+
+		.network-table td {
+			padding: 6px 12px;
+			border-bottom: 1px solid var(--border);
+			vertical-align: middle;
+			position: relative;
+		}
+
+		.network-table tr:hover {
+			background: var(--bg-secondary);
+		}
+
+		.network-table tr.selected {
+			background: rgba(88, 166, 255, 0.1);
+			border-left: 3px solid var(--accent);
+		}
+
+		.network-table tr.network-row {
+			cursor: pointer;
+		}
+
+		/* Column specific styles */
+		.select-column {
+			width: 40px;
+			text-align: center;
+		}
+
+		.select-column input[type="checkbox"] {
+			margin: 0;
+		}
+
+		.actions-column {
+			width: 80px;
+			text-align: center;
+		}
+
+		/* Network Request Status Styling */
+		.status-badge {
+			padding: 2px 6px;
+			border-radius: 3px;
+			font-size: 0.7em;
+			font-weight: 600;
+			text-align: center;
+			min-width: 40px;
+			display: inline-block;
+		}
+
+		.status-2xx {
+			background: rgba(35, 134, 54, 0.2);
+			color: var(--success);
+		}
+
+		.status-3xx {
+			background: rgba(255, 193, 7, 0.2);
+			color: var(--warning);
+		}
+
+		.status-4xx,
+		.status-5xx {
+			background: rgba(220, 53, 69, 0.2);
+			color: var(--error);
+		}
+
+		.status-pending {
+			background: rgba(108, 117, 125, 0.2);
+			color: var(--text-secondary);
+		}
+
+		/* Method badges */
+		.method-badge {
+			padding: 2px 6px;
+			border-radius: 3px;
+			font-size: 0.7em;
+			font-weight: 600;
+			text-align: center;
+			min-width: 50px;
+			display: inline-block;
+		}
+
+		.method-get {
+			background: rgba(13, 202, 240, 0.2);
+			color: #0dcaf0;
+		}
+
+		.method-post {
+			background: rgba(25, 135, 84, 0.2);
+			color: #198754;
+		}
+
+		.method-put {
+			background: rgba(255, 193, 7, 0.2);
+			color: #ffc107;
+		}
+
+		.method-delete {
+			background: rgba(220, 53, 69, 0.2);
+			color: #dc3545;
+		}
+
+		.method-patch {
+			background: rgba(111, 66, 193, 0.2);
+			color: #6f42c1;
+		}
+
+		/* Request URL styling */
+		.request-url {
+			max-width: 300px;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			color: var(--text-primary);
+		}
+
+		.request-name {
+			font-weight: 600;
+			color: var(--accent);
+			margin-bottom: 2px;
+		}
+
+		.request-path {
+			color: var(--text-secondary);
+			font-size: 0.9em;
+		}
+
+		/* Size and timing styling */
+		.size-cell,
+		.time-cell {
+			text-align: right;
+			font-weight: 500;
+		}
+
+		/* Action buttons */
+		.network-action-btn {
+			padding: 4px 6px;
+			border: none;
+			border-radius: 3px;
+			background: var(--bg-tertiary);
+			color: var(--text-secondary);
+			cursor: pointer;
+			font-size: 0.7em;
+			margin: 0 2px;
+			transition: all 0.2s ease;
+		}
+
+		.network-action-btn:hover {
+			background: var(--bg-accent);
+			color: var(--text-primary);
+		}
+
+		.network-action-btn.delete {
+			color: var(--error);
+		}
+
+		.network-action-btn.delete:hover {
+			background: rgba(220, 53, 69, 0.2);
+		}
+
+		/* Empty state */
+		.network-empty-state {
+			text-align: center;
+			padding: 40px 20px;
+			color: var(--text-secondary);
+		}
+
+		.network-empty-state i {
+			font-size: 2em;
+			margin-bottom: 12px;
+			opacity: 0.5;
+		}
+
+		.network-empty-state p {
+			margin: 8px 0 4px 0;
+			font-size: 1.1em;
+		}
+
+		.network-empty-state small {
+			opacity: 0.7;
+		}
+
+		/* Network Modal Styles */
+		.network-modal {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(0, 0, 0, 0.7);
+			z-index: 1000;
+			backdrop-filter: blur(4px);
+		}
+
+		.network-modal.active {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.network-modal-content {
+			background: var(--bg-card);
+			border-radius: 12px;
+			border: 1px solid var(--border);
+			width: 90%;
+			max-width: 900px;
+			/* Force consistent total height */
+			height: 78vh;
+			max-height: 78vh;
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+			box-shadow: var(--shadow-lg);
+		}
+
+		.network-modal-header {
+			padding: 14px 18px;
+			background: var(--bg-secondary);
+			border-bottom: 1px solid var(--border);
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			position: sticky;
+			top: 0;
+			z-index: 50;
+			/* elevate above scrollable JSON */
+		}
+
+		.network-modal-header h3 {
+			margin: 0;
+			font-size: 1.1em;
+			color: var(--text-primary);
+			flex: 1;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			padding-right: 12px;
+			/* space so ellipsis not under close */
+		}
+
+		.close-modal {
+			background: none;
+			border: 1px solid transparent;
+			color: var(--text-secondary);
+			font-size: 1.05em;
+			cursor: pointer;
+			padding: 6px 8px;
+			border-radius: 6px;
+			line-height: 1;
+			transition: background .18s, color .18s, border-color .18s;
+			position: relative;
+			z-index: 60;
+			/* ensure always clickable */
+		}
+
+		.close-modal:hover {
+			background: var(--bg-tertiary);
+			color: var(--text-primary);
+			border-color: var(--border);
+		}
+
+		.network-modal-body {
+			padding: 0;
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			min-height: 0;
+			/* allow flex scroll */
+		}
+
+		.network-details-content {
+			/* ensure panels fill and scroll internally */
+			flex: 1;
+			min-height: 0;
+			overflow: hidden;
+			display: flex;
+			flex-direction: column;
+		}
+
+		.network-detail-panel {
+			/* existing styles ... */
+			max-height: none !important;
+			overflow: auto;
+			flex: 1;
+		}
+
+		.network-details-tabs {
+			display: flex;
+			background: var(--bg-tertiary);
+			border-bottom: 1px solid var(--border);
+		}
+
+		.network-detail-tab {
+			padding: 12px 20px;
+			background: none;
+			border: none;
+			color: var(--text-secondary);
+			cursor: pointer;
+			font-weight: 500;
+			border-bottom: 3px solid transparent;
+			transition: all 0.2s ease;
+		}
+
+		.network-detail-tab:hover {
+			background: var(--bg-accent);
+			color: var(--text-primary);
+		}
+
+		.network-detail-tab.active {
+			color: var(--accent);
+			border-bottom-color: var(--accent);
+			background: var(--bg-card);
+		}
+
+		.network-details-content {
+			padding: 20px;
+		}
+
+		.network-detail-panel {
+			display: none;
+		}
+
+		.network-detail-panel.active {
+			display: block;
+		}
+
+		.network-detail-section {
+			margin-bottom: 20px;
+		}
+
+		.network-detail-section h4 {
+			margin: 0 0 12px 0;
+			font-size: 0.9em;
+			color: var(--text-secondary);
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+		}
+
+		.network-detail-item {
+			display: flex;
+			margin-bottom: 8px;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.8em;
+		}
+
+		.network-detail-label {
+			min-width: 120px;
+			color: var(--text-secondary);
+			font-weight: 600;
+		}
+
+		.network-detail-value {
+			color: var(--text-primary);
+			word-break: break-word;
+		}
+
+		.network-detail-code {
+			background: var(--bg-primary);
+			border: 1px solid var(--border);
+			border-radius: 4px;
+			padding: 12px;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.8em;
+			white-space: pre-wrap;
+			word-break: break-word;
+			max-height: 300px;
+			overflow: auto;
+		}
+
+		/* Application/Storage */
+		.storage-container {
+			background: var(--bg-card);
+			border-radius: 16px;
+			border: 1px solid var(--border);
+			overflow: hidden;
+		}
+
+		.storage-header {
+			padding: 16px 24px;
+			background: var(--bg-secondary);
+			border-bottom: 1px solid var(--border);
+			font-weight: 600;
+			display: flex;
+			justify-content: space-between;
+		}
+
+		.storage-content {
+			padding: 0;
+			max-height: 500px;
+			overflow: auto;
+			/* Add smooth scrolling and styled scrollbars */
+			scrollbar-width: thin;
+			scrollbar-color: var(--accent) var(--bg-tertiary);
+		}
+
+		.storage-content::-webkit-scrollbar {
+			width: 8px;
+			height: 8px;
+		}
+
+		.storage-content::-webkit-scrollbar-track {
+			background: var(--bg-tertiary);
+			border-radius: 4px;
+		}
+
+		.storage-content::-webkit-scrollbar-thumb {
+			background: var(--accent);
+			border-radius: 4px;
+		}
+
+		.storage-content::-webkit-scrollbar-thumb:hover {
+			background: var(--accent-hover);
+		}
+
+		.storage-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+			padding: 12px 16px;
+			margin-bottom: 8px;
+			background: var(--bg-secondary);
+			border-radius: 8px;
+			gap: 16px;
+		}
+
+		.storage-key {
+			font-weight: 600;
+			color: var(--accent);
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.85em;
+			min-width: 120px;
+		}
+
+		.storage-value {
+			color: var(--text-primary);
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.8em;
+			word-break: break-all;
+			flex: 1;
+		}
+
+		/* Chrome DevTools Style Storage Table */
+		.devtools-storage-table {
+			background: #ffffff;
+			border: 1px solid #d0d7de;
+			border-radius: 6px;
+			overflow: hidden;
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			font-size: 13px;
+			/* Add container scrolling */
+			max-height: 450px;
+			overflow-y: auto;
+			overflow-x: auto;
+		}
+
+		.devtools-storage-table::-webkit-scrollbar {
+			width: 12px;
+			height: 12px;
+		}
+
+		.devtools-storage-table::-webkit-scrollbar-track {
+			background: #f6f8fa;
+		}
+
+		.devtools-storage-table::-webkit-scrollbar-thumb {
+			background: #d0d7de;
+			border-radius: 6px;
+		}
+
+		.devtools-storage-table::-webkit-scrollbar-thumb:hover {
+			background: #b1b8c0;
+		}
+
+		.storage-table {
+			width: 100%;
+			border-collapse: collapse;
+			background: #ffffff;
+			min-width: 600px;
+			/* Ensure minimum width for horizontal scroll */
+		}
+
+		.storage-table thead {
+			background: #f6f8fa;
+			border-bottom: 1px solid #d0d7de;
+		}
+
+		.storage-table th {
+			padding: 8px 12px;
+			text-align: left;
+			font-weight: 600;
+			color: #24292f;
+			border-right: 1px solid #d0d7de;
+			font-size: 12px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+		}
+
+		.storage-table th:last-child {
+			border-right: none;
+		}
+
+		.storage-key-header {
+			width: 25%;
+			min-width: 120px;
+		}
+
+		.storage-value-header {
+			width: 65%;
+			min-width: 200px;
+		}
+
+		.storage-actions-header {
+			width: 10%;
+			min-width: 60px;
+			text-align: center;
+		}
+
+		.storage-table tbody tr {
+			border-bottom: 1px solid #d0d7de;
+			transition: background-color 0.15s ease;
+		}
+
+		.storage-table tbody tr:hover {
+			background: #f6f8fa;
+		}
+
+		.storage-table tbody tr:last-child {
+			border-bottom: none;
+		}
+
+		.storage-table td {
+			padding: 8px 12px;
+			vertical-align: top;
+			border-right: 1px solid #d0d7de;
+			color: #24292f;
+			font-size: 13px;
+		}
+
+		.storage-table td:last-child {
+			border-right: none;
+		}
+
+		.storage-table .storage-key-cell {
+			font-family: 'JetBrains Mono', 'Consolas', monospace;
+			font-weight: 500;
+			color: #0969da;
+			word-break: break-all;
+		}
+
+		.storage-table .storage-value-cell {
+			font-family: 'JetBrains Mono', 'Consolas', monospace;
+			color: #24292f;
+			word-break: break-all;
+			position: relative;
+		}
+
+		.storage-value-content {
+			max-width: 400px;
+			max-height: 100px;
+			overflow: auto;
+			padding: 4px;
+			border-radius: 4px;
+			background: #f6f8fa;
+			word-break: break-all;
+			white-space: pre-wrap;
+			font-size: 12px;
+			line-height: 1.4;
+			/* Custom scrollbar for value content */
+		}
+
+		.storage-value-content::-webkit-scrollbar {
+			width: 6px;
+			height: 6px;
+		}
+
+		.storage-value-content::-webkit-scrollbar-track {
+			background: #e1e4e8;
+			border-radius: 3px;
+		}
+
+		.storage-value-content::-webkit-scrollbar-thumb {
+			background: #c9d1d9;
+			border-radius: 3px;
+		}
+
+		.storage-value-content::-webkit-scrollbar-thumb:hover {
+			background: #b1b8c0;
+		}
+
+		.storage-value-content.expanded {
+			max-width: none;
+			max-height: 300px;
+			white-space: pre-wrap;
+		}
+
+		.storage-value-short {
+			max-width: 400px;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			padding: 4px;
+			background: #f6f8fa;
+			border-radius: 4px;
+			font-size: 12px;
+		}
+
+		.storage-table .storage-actions-cell {
+			text-align: center;
+		}
+
+		.storage-delete-btn {
+			background: none;
+			border: none;
+			color: #d1242f;
+			cursor: pointer;
+			padding: 4px 8px;
+			border-radius: 4px;
+			font-size: 12px;
+			transition: all 0.15s ease;
+		}
+
+		.storage-delete-btn:hover {
+			background: #fff1f3;
+			color: #a40e26;
+		}
+
+		.empty-storage td {
+			text-align: center;
+			color: #656d76;
+			font-style: italic;
+			padding: 32px 12px;
+		}
+
+		.storage-expand-btn {
+			background: none;
+			border: none;
+			color: #0969da;
+			cursor: pointer;
+			font-size: 12px;
+			margin-left: 8px;
+			padding: 4px 6px;
+			border-radius: 3px;
+			font-weight: bold;
+			transition: all 0.15s ease;
+		}
+
+		.storage-expand-btn:hover {
+			background: #dbeafe;
+			transform: scale(1.1);
+		}
+
+		/* Scroll indicators */
+		.storage-value-content::before {
+			content: '';
+			position: absolute;
+			top: 2px;
+			right: 2px;
+			width: 8px;
+			height: 8px;
+			background: rgba(9, 105, 218, 0.6);
+			border-radius: 50%;
+			opacity: 0;
+			transition: opacity 0.2s ease;
+		}
+
+		.storage-value-content:hover::before {
+			opacity: 1;
+		}
+
+		/* Script Editor Styles */
+		.script-editor-container {
+			display: flex;
+			flex-direction: column;
+			height: 100%;
+			background: var(--bg-secondary);
+			border-radius: 12px;
+			overflow: hidden;
+		}
+
+		.script-tabs {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			background: var(--bg-tertiary);
+			border-bottom: 1px solid var(--border);
+			padding: 0 12px;
+			min-height: 48px;
+		}
+
+		.script-tab-list {
+			display: flex;
+			gap: 2px;
+			overflow-x: auto;
+			scrollbar-width: none;
+			-ms-overflow-style: none;
+		}
+
+		.script-tab-list::-webkit-scrollbar {
+			display: none;
+		}
+
+		.script-tab {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			padding: 8px 12px;
+			background: transparent;
+			border: none;
+			color: var(--text-secondary);
+			cursor: pointer;
+			border-radius: 4px 4px 0 0;
+			transition: all 0.2s ease;
+			white-space: nowrap;
+			font-size: 0.8em;
+			font-weight: 500;
+			position: relative;
+		}
+
+		.script-tab:hover {
+			background: var(--bg-secondary);
+			color: var(--text-primary);
+		}
+
+		.script-tab.active {
+			background: var(--bg-secondary);
+			color: var(--accent);
+			box-shadow: 0 -2px 0 var(--accent);
+		}
+
+		.script-tab i {
+			font-size: 0.9em;
+		}
+
+		.script-tab-actions {
+			display: flex;
+			gap: 4px;
+		}
+
+		.syntax-status {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 6px 12px;
+			border-radius: 6px;
+			font-size: 0.8em;
+			font-weight: 500;
+		}
+
+		.syntax-status .status-indicator {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: var(--success);
+		}
+
+		.syntax-status.error .status-indicator {
+			background: var(--error);
+		}
+
+		.syntax-status.warning .status-indicator {
+			background: #ffa500;
+		}
+
+		.validation-controls {
+			display: flex;
+			gap: 12px;
+		}
+
+		.action-button {
+			padding: 10px 16px;
+			border: none;
+			border-radius: 8px;
+			font-weight: 500;
+			font-size: 0.85em;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.action-button.validate {
+			background: var(--warning);
+			color: white;
+		}
+
+		.action-button.validate:hover {
+			background: #e6a000;
+			transform: translateY(-1px);
+		}
+
+		.action-button.send {
+			background: var(--success);
+			color: white;
+		}
+
+		.action-button.send:hover {
+			background: #27ae60;
+			transform: translateY(-1px);
+		}
+
+		.action-button:disabled {
+			background: var(--bg-tertiary);
+			color: var(--text-secondary);
+			cursor: not-allowed;
+			transform: none;
+		}
+
+		.script-info {
+			display: flex;
+			gap: 16px;
+			align-items: center;
+		}
+
+		.info-item {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 0.8em;
+			color: var(--text-secondary);
+		}
+
+		.validation-container {
+			flex: 1;
+			background: var(--bg-secondary);
+			border-radius: 12px;
+			overflow: hidden;
+		}
+
+		.validation-summary {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.status-badge {
+			padding: 4px 12px;
+			border-radius: 20px;
+			font-size: 0.75em;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+		}
+
+		.status-badge.ready {
+			background: rgba(52, 152, 219, 0.1);
+			color: var(--accent);
+		}
+
+		.status-badge.valid {
+			background: rgba(46, 204, 113, 0.1);
+			color: var(--success);
+		}
+
+		.status-badge.error {
+			background: rgba(231, 76, 60, 0.1);
+			color: var(--error);
+		}
+
+		.status-badge.warning {
+			background: rgba(255, 165, 0, 0.1);
+			color: #ffa500;
+		}
+
+		.validation-placeholder {
+			text-align: center;
+			padding: 40px 20px;
+			color: var(--text-secondary);
+		}
+
+		.validation-placeholder i {
+			font-size: 3em;
+			margin-bottom: 16px;
+			color: var(--accent);
+		}
+
+		.validation-placeholder h3 {
+			margin: 0 0 12px;
+			color: var(--text-primary);
+			font-size: 1.4em;
+		}
+
+		.validation-placeholder p {
+			margin: 0 0 24px;
+			line-height: 1.6;
+		}
+
+		.validation-features {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			max-width: 300px;
+			margin: 0 auto;
+		}
+
+		.feature-item {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			padding: 8px 16px;
+			background: var(--bg-tertiary);
+			border-radius: 8px;
+			font-size: 0.9em;
+		}
+
+		.feature-item i {
+			color: var(--success);
+			width: 16px;
+		}
+
+		.validation-results {
+			padding: 20px;
+		}
+
+		.validation-error,
+		.validation-warning,
+		.validation-success {
+			padding: 12px 16px;
+			border-radius: 8px;
+			margin-bottom: 12px;
+			display: flex;
+			align-items: flex-start;
+			gap: 12px;
+		}
+
+		.validation-error {
+			background: rgba(231, 76, 60, 0.1);
+			border-left: 4px solid var(--error);
+		}
+
+		.validation-warning {
+			background: rgba(255, 165, 0, 0.1);
+			border-left: 4px solid #ffa500;
+		}
+
+		.validation-success {
+			background: rgba(46, 204, 113, 0.1);
+			border-left: 4px solid var(--success);
+		}
+
+		.validation-message {
+			flex: 1;
+		}
+
+		.validation-message .title {
+			font-weight: 600;
+			margin-bottom: 4px;
+		}
+
+		.validation-message .description {
+			font-size: 0.9em;
+			color: var(--text-secondary);
+			line-height: 1.4;
+		}
+
+		.validation-message .location {
+			font-size: 0.8em;
+			color: var(--text-secondary);
+			margin-top: 4px;
+			font-family: 'JetBrains Mono', monospace;
+		}
+
+		/* Script Editor Layout */
+		.script-editor-container .editor-container {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+		}
+
+		.script-editor-container .editor-wrapper {
+			flex: 1;
+		}
+
+		.script-editor-container .editor-footer {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 12px;
+			background: var(--bg-tertiary);
+			border-top: 1px solid var(--border);
+		}
+
+		/* Replay Container */
+		.replay-section {
+			background: var(--bg-card);
+			border-radius: 12px;
+			border: 1px solid var(--border);
+			overflow: hidden;
+			margin-bottom: 16px;
+			box-shadow: var(--shadow);
+		}
+
+		.replay-controls {
+			padding: 12px 16px;
+			background: var(--bg-secondary);
+			border-bottom: 1px solid var(--border);
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+		}
+
+		.replay-controls-left {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+		}
+
+		.replay-controls-right {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+		}
+
+		.replay-status {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 6px 12px;
+			background: var(--bg-tertiary);
+			border-radius: 20px;
+			font-size: 12px;
+			font-weight: 500;
+		}
+
+		.replay-status.recording {
+			background: rgba(231, 76, 60, 0.1);
+			color: var(--error);
+			border: 1px solid rgba(231, 76, 60, 0.2);
+		}
+
+		.replay-status.playing {
+			background: rgba(39, 174, 96, 0.1);
+			color: var(--success);
+			border: 1px solid rgba(39, 174, 96, 0.2);
+		}
+
+		.replay-status.paused {
+			background: rgba(243, 156, 18, 0.1);
+			color: var(--warning);
+			border: 1px solid rgba(243, 156, 18, 0.2);
+		}
+
+		.replay-status.idle {
+			background: var(--bg-tertiary);
+			color: var(--text-muted);
+			border: 1px solid var(--border);
+		}
+
+		.status-indicator {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: currentColor;
+		}
+
+		.recording .status-indicator {
+			animation: pulse 1.5s infinite;
+		}
+
+		.replay-progress {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			flex: 1;
+			max-width: 300px;
+		}
+
+		.replay-progress.hidden {
+			display: none;
+		}
+
+		.progress-bar {
+			flex: 1;
+			height: 6px;
+			background: var(--bg-tertiary);
+			border-radius: 3px;
+			overflow: hidden;
+			cursor: pointer;
+			position: relative;
+		}
+
+		.progress-fill {
+			height: 100%;
+			background: var(--accent);
+			border-radius: 3px;
+			transition: width 0.1s ease;
+			width: 0%;
+		}
+
+		.progress-handle {
+			position: absolute;
+			top: 50%;
+			transform: translate(-50%, -50%);
+			width: 12px;
+			height: 12px;
+			background: var(--accent);
+			border-radius: 50%;
+			cursor: grab;
+			opacity: 0;
+			transition: opacity 0.2s ease;
+		}
+
+		.progress-bar:hover .progress-handle {
+			opacity: 1;
+		}
+
+		.progress-handle:active {
+			cursor: grabbing;
+		}
+
+		.replay-time {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 11px;
+			color: var(--text-muted);
+			min-width: 80px;
+		}
+
+		.replay-container {
+			position: relative;
+			width: 100%;
+			background: var(--bg-primary);
+			overflow: hidden;
+		}
+
+		.replay-container.has-content {
+			background: #ffffff;
+		}
+
+		/* .replay-container iframe,
+		.replay-container canvas {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+		} */
+
+		/* rrweb player wrapper */
+		/* .replay-container .rr-player,
+		.replay-container .replayer-wrapper {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+		} */
+
+		/* Placeholder centered when no content */
+		.replay-container:not(.has-content) {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.replay-placeholder {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 16px;
+			color: var(--text-muted);
+			text-align: center;
+			padding: 40px;
+		}
+
+		.replay-placeholder-icon {
+			width: 64px;
+			height: 64px;
+			border-radius: 50%;
+			background: var(--bg-tertiary);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 24px;
+			color: var(--text-muted);
+		}
+
+		.replay-placeholder h3 {
+			margin: 0;
+			font-size: 18px;
+			font-weight: 600;
+			color: var(--text-secondary);
+		}
+
+		.replay-placeholder p {
+			margin: 0;
+			font-size: 14px;
+			line-height: 1.5;
+			max-width: 400px;
+		}
+
+		.replay-stats {
+			display: flex;
+			gap: 16px;
+			font-size: 11px;
+			color: var(--text-muted);
+		}
+
+		.replay-stat {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+		}
+
+		.replay-overlay {
+			position: absolute;
+			top: 16px;
+			right: 16px;
+			display: flex;
+			gap: 8px;
+			z-index: 10;
+		}
+
+		.replay-overlay.hidden {
+			display: none;
+		}
+
+		.overlay-badge {
+			padding: 4px 8px;
+			background: rgba(0, 0, 0, 0.8);
+			color: white;
+			border-radius: 12px;
+			font-size: 10px;
+			font-weight: 500;
+			backdrop-filter: blur(8px);
+		}
+
+		.replay-controls .icon-button {
+			width: 36px;
+			height: 36px;
+			border-radius: 8px;
+		}
+
+		.replay-controls .icon-button.primary {
+			background: var(--accent);
+			color: white;
+		}
+
+		.replay-controls .icon-button.primary:hover {
+			background: var(--accent-hover);
+		}
+
+		/* Responsive Design */
+		@media (max-width: 1200px) {
+			.main-layout {
+				grid-template-columns: 350px 1fr;
+			}
+		}
+
+		@media (max-width: 1024px) {
+			.main-layout {
+				grid-template-columns: 1fr;
+				grid-template-areas:
+					"header"
+					"main";
+			}
+
+			.sidebar {
+				position: fixed;
+				left: -400px;
+				top: 70px;
+				height: calc(100vh - 70px);
+				z-index: 90;
+				transition: left 0.3s ease;
+				width: 400px;
+			}
+
+			.sidebar.open {
+				left: 0;
+			}
+
+			.content-area {
+				padding: 20px;
+			}
+		}
+
+		@media (max-width: 768px) {
+			.header {
+				padding: 0 16px;
+			}
+
+			.content-area {
+				padding: 16px;
+			}
+
+			.command-input-group {
+				flex-direction: column;
+			}
+
+			.command-controls {
+				justify-content: center;
+			}
+		}
+
+		/* Modal Styles */
+		.modal-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(0, 0, 0, 0.8);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			z-index: 1000;
+			backdrop-filter: blur(4px);
+		}
+
+		.modal-content {
+			background: var(--bg-secondary);
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			max-width: 90vw;
+			max-height: 90vh;
+			overflow-y: auto;
+			box-shadow: var(--shadow-lg);
+		}
+
+		.modal-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 20px 24px;
+			border-bottom: 1px solid var(--border);
+		}
+
+		.modal-close {
+			background: none;
+			border: none;
+			color: var(--text-secondary);
+			cursor: pointer;
+			padding: 8px;
+			border-radius: 6px;
+			transition: all 0.2s ease;
+		}
+
+		.modal-close:hover {
+			background: var(--bg-accent);
+			color: var(--text-primary);
+		}
+
+		.modal-body {
+			padding: 24px;
+		}
+
+		/* Animations */
+		@keyframes pulse {
+
+			0%,
+			100% {
+				opacity: 1;
+			}
+
+			50% {
+				opacity: 0.5;
+			}
+		}
+
+		@keyframes slideIn {
+			from {
+				opacity: 0;
+				transform: translateY(20px);
+			}
+
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		.slide-in {
+			animation: slideIn 0.3s ease-out;
+		}
+
+		/* Scrollbar Styling */
+		::-webkit-scrollbar {
+			width: 8px;
+		}
+
+		::-webkit-scrollbar-track {
+			background: var(--bg-secondary);
+		}
+
+		::-webkit-scrollbar-thumb {
+			background: var(--bg-accent);
+			border-radius: 4px;
+		}
+
+		::-webkit-scrollbar-thumb:hover {
+			background: var(--border-hover);
+		}
+
+		.hidden {
+			display: none !important;
+		}
+
+		.input-group {
+			display: flex;
+			gap: 8px;
+		}
+
+		.input-group .form-input {
+			flex: 1;
+		}
+
+		.editor-footer {
+			padding: 16px 24px;
+			background: var(--bg-secondary);
+			border-top: 1px solid var(--border);
+		}
+
+		/* Placeholder styles - Chrome DevTools inspired */
+		.placeholder {
+			color: var(--text-muted);
+			font-style: italic;
+			text-align: center;
+			padding: 20px;
+			font-size: 0.9em;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 100px;
+			background: var(--bg-primary);
+			border-radius: 4px;
+			border: 1px dashed var(--border);
+		}
+
+		/* Console placeholder specific styling */
+		.output-content .placeholder {
+			border: none;
+			background: transparent;
+			font-size: 0.85em;
+			color: var(--text-secondary);
+			opacity: 0.7;
+		}
+
+		.hidden {
+			display: none !important;
+		}
+
+		/* Script output styles */
+		.script-result {
+			margin: 8px 0;
+			padding: 12px;
+			background: var(--bg-tertiary);
+			border-radius: 6px;
+			border-left: 3px solid var(--accent);
+		}
+
+		.script-timestamp {
+			font-size: 11px;
+			color: var(--text-muted);
+			margin-bottom: 6px;
+		}
+
+		.script-output pre {
+			margin: 0;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 13px;
+			color: var(--text-primary);
+			white-space: pre-wrap;
+			word-break: break-word;
+		}
+
+		.script-execution {
+			margin: 8px 0;
+			padding: 12px;
+			background: var(--bg-accent);
+			border-radius: 6px;
+			border-left: 3px solid var(--info);
+		}
+
+		.script-execution strong {
+			color: var(--accent);
+		}
+
+		.script-execution pre {
+			margin: 8px 0 0 0;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 12px;
+			color: var(--text-secondary);
+			background: var(--bg-primary);
+			padding: 8px;
+			border-radius: 4px;
+			overflow-x: auto;
+		}
+
+		#replay-root {
+			position: relative;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(115, 145, 35, 0.8);
+			display: block;
+			justify-content: center;
+			align-items: center;
+			z-index: 1000;
+			border: 1px solid #0969da;
+
+		}
+
+		#replay-container.active {
+			display: flex;
+		}
+
+		#replay-container {
+			position: absolute;
+			width: calc(100% - 2px);
+			height: calc(100% - 2px);
+			left: 1px;
+			top: 1px;
+			border: #27ae60;
+			background: rgba(38, 7, 68, 0.9);
+			z-index: 1001;
+		}
+
+		/* Footer Styles - Ultra Minimal */
+		.debug-footer {
+			background: transparent;
+			border-top: 1px solid rgba(var(--border-color-rgb), 0.1);
+			padding: 2px 16px;
+			margin-top: auto;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 0.55em;
+			color: var(--text-secondary);
+			flex-shrink: 0;
+			min-height: 16px;
+			max-height: 16px;
+			position: relative;
+			z-index: 5;
+			opacity: 0.6;
+		}
+
+		.footer-content {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			width: 100%;
+			max-width: 1200px;
+			gap: 20px;
+		}
+
+		.footer-brand {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+			opacity: 0.6;
+		}
+
+		.brand-icon {
+			color: var(--accent);
+			font-size: 0.8em;
+		}
+
+		.brand-text {
+			color: var(--text-secondary);
+			font-weight: 400;
+			white-space: nowrap;
+		}
+
+		.version {
+			color: var(--text-secondary);
+			opacity: 0.5;
+			font-size: 0.85em;
+			margin-left: 3px;
+		}
+
+		.footer-status {
+			display: flex;
+			align-items: center;
+			gap: 3px;
+			font-size: 0.85em;
+		}
+
+		.status-dot {
+			width: 4px;
+			height: 4px;
+			border-radius: 50%;
+			background: var(--text-secondary);
+			opacity: 0.5;
+			transition: all 0.3s ease;
+		}
+
+		.footer-status.connected .status-dot {
+			background: var(--success);
+			opacity: 0.8;
+			box-shadow: 0 0 4px rgba(var(--success-rgb), 0.3);
+		}
+
+		.status-text {
+			color: var(--text-secondary);
+			opacity: 0.7;
+			white-space: nowrap;
+		}
+
+		.footer-status.connected .status-text {
+			color: var(--success);
+			opacity: 0.9;
+		}
+
+		/* Enhanced Responsive Design for Space Optimization */
+		@media (max-width: 1200px) {
+			.main-layout {
+				grid-template-columns: 300px 1fr;
+			}
+
+			.content-area {
+				padding: 12px;
+			}
+
+			.sidebar-section {
+				padding: 0 12px 16px 12px;
+			}
+
+			.output-content {
+				max-height: calc(100vh - 350px);
+				font-size: 0.75em;
+			}
+		}
+
+		@media (max-width: 968px) {
+			.main-layout {
+				grid-template-columns: 280px 1fr;
+				grid-template-rows: 50px 1fr;
+			}
+
+			.header {
+				padding: 0 16px;
+			}
+
+			.tabs-header {
+				padding: 0 12px;
+			}
+
+			.tab {
+				padding: 8px 12px;
+				font-size: 0.8em;
+			}
+
+			.content-area {
+				padding: 8px;
+			}
+
+			.command-section {
+				padding: 12px;
+				margin-bottom: 12px;
+			}
+
+			.output-content {
+				max-height: calc(100vh - 400px);
+				font-size: 0.7em;
+				padding: 6px;
+			}
+
+			.log-line {
+				padding: 3px 6px;
+				margin-bottom: 1px;
+			}
+		}
+
+		/* Hide footer completely on small screens to maximize space */
+		@media (max-width: 768px) {
+			.debug-footer {
+				display: none;
+			}
+
+			.main-layout {
+				grid-template-columns: 1fr;
+				grid-template-rows: 50px auto 1fr;
+				grid-template-areas:
+					"header"
+					"tabs"
+					"main";
+			}
+
+			.sidebar {
+				display: none;
+			}
+
+			.tabs-header {
+				grid-area: tabs;
+				border-bottom: 1px solid var(--border);
+			}
+
+			.main-content {
+				grid-area: main;
+			}
+
+			.output-content {
+				max-height: calc(100vh - 200px);
+				font-size: 0.7em;
+			}
+
+			.output-container {
+				max-height: calc(100vh - 150px);
+			}
+		}
+
+		/* Ultra compact version for medium screens */
+		@media (max-width: 1024px) {
+			.footer-brand .brand-text {
+				display: none;
+			}
+
+			.version::before {
+				content: "Debug ";
+			}
+		}
+	</style>
+	<!-- <script src="https://player-dev.sonyliv.com/dashboard/chunk.js"></script> -->
+</head>
+
+<body>
+	<div class="main-layout">
+		<!-- Header -->
+		<div class="header">
+			<div class="header-left">
+				<div class="logo">
+					<i class="fas fa-bug"></i>
+					<span>Remote Debugger</span>
+				</div>
+				<div class="connection-badge">
+					<div class="status-dot" id="statusDot"></div>
+					<span id="connectionStatus">Disconnected</span>
+				</div>
+			</div>
+			<div class="header-right">
+				<button class="header-button hidden" id="sidebarToggle" title="Toggle Sidebar">
+					<i class="fas fa-bars"></i>
+				</button>
+				<button class="header-button" id="fullScreenButton" title="Fullscreen">
+					<i class="fas fa-expand"></i>
+				</button>
+				<button class="header-button" id="downloadButton" title="Download Logs">
+					<i class="fas fa-download"></i>
+				</button>
+			</div>
+		</div>
+
+		<!-- DevTools Feature Banner -->
+		<div class="devtools-banner" id="devtoolsBanner">
+			<div class="banner-content">
+				<div class="banner-icon">
+					<i class="fab fa-chrome"></i>
+				</div>
+				<div class="banner-text">
+					<div class="banner-title">Enhanced DevTools Integration Available</div>
+					<div class="banner-description">Enable Automatic Workspace Folders in Chrome DevTools for seamless
+						live editing</div>
+				</div>
+				<div class="banner-actions">
+					<button class="banner-button primary" onclick="showDevToolsGuide()">
+						<i class="fas fa-external-link-alt"></i>
+						Setup Guide
+					</button>
+					<button class="banner-button close" onclick="dismissDevToolsBanner()" title="Dismiss notification">
+						<i class="fas fa-times"></i>
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Sidebar -->
+		<div class="sidebar" id="sidebar">
+			<div class="sidebar-section">
+				<div class="section-header">
+					<i class="fas fa-plug"></i>
+					Connection Settings
+				</div>
+				<div class="form-group">
+					<label class="form-label" for="receiverId">Target Device ID (CPID)</label>
+					<input type="text" id="receiverId" class="form-input" value="190512144182233378"
+						placeholder="Enter target device ID">
+				</div>
+				<button id="connectButton" class="primary-button">
+					<i class="fas fa-link"></i>
+					Connect to Device
+				</button>
+			</div>
+
+			<div class="sidebar-section">
+				<div class="section-header">
+					<i class="fas fa-cogs"></i>
+					Quick Commands
+				</div>
+				<div class="form-group">
+					<label class="form-label" for="eachRemoteInput">Remote Key Code</label>
+					<div class="input-group">
+						<input type="text" id="eachRemoteInput" class="form-input" placeholder="Key code">
+						<button id="sendRemoteEventButton" class="command-button">Send</button>
+					</div>
+				</div>
+				<div class="control-panel">
+					<div class="quick-action" onclick="sendQuickCommand('location.reload()')">
+						<i class="fas fa-redo"></i><br>Reload Page
+					</div>
+					<div class="quick-action" onclick="sendQuickCommand('console.clear()')">
+						<i class="fas fa-eraser"></i><br>Clear Console
+					</div>
+					<div class="quick-action" onclick="sendQuickCommand('localStorage')">
+						<i class="fas fa-database"></i><br>Get Storage
+					</div>
+					<div class="quick-action" onclick="sendQuickCommand('navigator.userAgent')">
+						<i class="fas fa-info"></i><br>User Agent
+					</div>
+				</div>
+			</div>
+
+			<div class="sidebar-section">
+				<div class="section-header">
+					<i class="fas fa-tools"></i>
+					Actions
+				</div>
+				<button class="secondary-button" id="clearAllButton">
+					<i class="fas fa-trash"></i>
+					Clear All Logs
+				</button>
+				<button class="secondary-button" id="exportLogsButton">
+					<i class="fas fa-file-export"></i>
+					Export Session
+				</button>
+			</div>
+		</div>
+
+		<!-- Main Content -->
+		<div class="main-content">
+			<div class="tabs-header">
+				<button class="tab active" data-tab="console">
+					<i class="fas fa-terminal"></i>
+					Console
+				</button>
+				<button class="tab" data-tab="network">
+					<i class="fas fa-globe"></i>
+					Network
+				</button>
+				<button class="tab" data-tab="application">
+					<i class="fas fa-database"></i>
+					Application
+				</button>
+				<button class="tab" data-tab="script">
+					<i class="fas fa-code"></i>
+					Script Editor
+				</button>
+				<button class="tab" data-tab="replay">
+					<i class="fas fa-play"></i>
+					DOM Replay
+				</button>
+			</div>
+
+
+			<!-- Console Tab -->
+			<div class="tab-content active" id="console">
+				<div class="content-area">
+					<div class="command-section">
+						<div class="command-header">
+							<div class="command-title">
+								<i class="fas fa-terminal"></i>
+								Command Line Interface
+							</div>
+							<div class="command-controls">
+								<button class="icon-button" id="clearConsoleButton" title="Clear Console">
+									<i class="fas fa-trash"></i>
+								</button>
+								<button class="icon-button" id="testConsoleButton" title="Test Console Display">
+									<i class="fas fa-play"></i>
+								</button>
+								<button class="icon-button" id="testMonacoButton" title="Test Monaco Editor">
+									<i class="fas fa-code"></i>
+								</button>
+							</div>
+						</div>
+						<div class="command-input-group">
+							<input type="text" id="eachCommandInput" class="command-input"
+								placeholder="Enter JavaScript command to execute on target device...">
+							<button id="sendEachCommandButton" class="command-button">Execute</button>
+						</div>
+					</div>
+
+					<div class="output-container">
+						<div class="output-header">
+							<div class="output-title">
+								<i class="fas fa-list"></i>
+								Console Output
+							</div>
+							<div class="command-controls">
+								<button class="icon-button" id="clearOutputButton" title="Clear Output">
+									<i class="fas fa-eraser"></i>
+								</button>
+							</div>
+						</div>
+						<div class="output-content" id="eachCommandResponse">
+							<div class="placeholder">Console output will appear here...</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Network Tab -->
+			<div class="tab-content" id="network">
+				<div class="content-area">
+					<!-- Network Controls Panel -->
+					<div class="network-controls-panel">
+						<div class="network-toolbar">
+							<div class="network-toolbar-left">
+								<button class="icon-button" id="clearNetworkButton" title="Clear Network">
+									<i class="fas fa-trash"></i>
+								</button>
+								<button class="icon-button" id="refreshNetworkButton" title="Refresh">
+									<i class="fas fa-sync"></i>
+								</button>
+								<div class="network-separator"></div>
+								<button class="filter-button active" data-filter="all" title="All">
+									<i class="fas fa-globe"></i>
+									<span>All</span>
+								</button>
+								<button class="filter-button" data-filter="xhr" title="XHR/Ajax">
+									<i class="fas fa-exchange-alt"></i>
+									<span>XHR</span>
+								</button>
+								<button class="filter-button" data-filter="fetch" title="Fetch">
+									<i class="fas fa-download"></i>
+									<span>Fetch</span>
+								</button>
+								<button class="filter-button" data-filter="js" title="JavaScript">
+									<i class="fas fa-code"></i>
+									<span>JS</span>
+								</button>
+								<button class="filter-button" data-filter="css" title="CSS">
+									<i class="fas fa-paint-brush"></i>
+									<span>CSS</span>
+								</button>
+								<button class="filter-button" data-filter="img" title="Images">
+									<i class="fas fa-image"></i>
+									<span>Img</span>
+								</button>
+								<button class="filter-button" data-filter="font" title="Fonts">
+									<i class="fas fa-font"></i>
+									<span>Font</span>
+								</button>
+								<button class="filter-button" data-filter="doc" title="Documents">
+									<i class="fas fa-file-alt"></i>
+									<span>Doc</span>
+								</button>
+							</div>
+							<div class="network-toolbar-right">
+								<div class="network-search">
+									<i class="fas fa-search"></i>
+									<input type="text" id="networkSearchInput" placeholder="Filter requests..." />
+								</div>
+								<button class="icon-button" id="networkSettingsButton" title="Settings">
+									<i class="fas fa-cog"></i>
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- Network Table -->
+					<div class="network-table-wrapper">
+						<div class="network-table-container">
+							<table class="network-table" id="networkTable">
+								<thead>
+									<tr>
+										<th class="select-column">
+											<input type="checkbox" id="selectAllNetwork" />
+										</th>
+										<th class="sortable" data-sort="name">
+											<span>Name</span>
+											<i class="fas fa-sort sort-icon"></i>
+										</th>
+										<th class="sortable" data-sort="status">
+											<span>Status</span>
+											<i class="fas fa-sort sort-icon"></i>
+										</th>
+										<th class="sortable" data-sort="method">
+											<span>Method</span>
+											<i class="fas fa-sort sort-icon"></i>
+										</th>
+										<th class="sortable" data-sort="type">
+											<span>Type</span>
+											<i class="fas fa-sort sort-icon"></i>
+										</th>
+										<th class="sortable" data-sort="size">
+											<span>Size</span>
+											<i class="fas fa-sort sort-icon"></i>
+										</th>
+										<th class="sortable" data-sort="time">
+											<span>Time</span>
+											<i class="fas fa-sort sort-icon"></i>
+										</th>
+										<th class="sortable" data-sort="timestamp">
+											<span>Timestamp</span>
+											<i class="fas fa-sort sort-icon"></i>
+										</th>
+										<th class="actions-column">Actions</th>
+									</tr>
+								</thead>
+								<tbody id="network-body">
+									<tr class="network-placeholder">
+										<td colspan="9" class="placeholder">
+											<div class="network-empty-state">
+												<i class="fas fa-globe"></i>
+												<p>No network requests captured yet</p>
+												<small>Network requests will appear here when your app makes
+													them</small>
+											</div>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+
+					<!-- Network Request Details Modal -->
+					<div id="networkDetailsModal" class="network-modal">
+						<div class="network-modal-content">
+							<div class="network-modal-header">
+								<h3 id="networkModalTitle">Request Details</h3>
+								<button class="close-modal" id="closeNetworkModal">
+									<i class="fas fa-times"></i>
+								</button>
+							</div>
+							<div class="network-modal-body">
+								<div class="network-details-tabs">
+									<button class="network-detail-tab active" data-tab="headers">Headers</button>
+									<button class="network-detail-tab" data-tab="response">Response</button>
+									<button class="network-detail-tab" data-tab="json">JSON</button>
+									<button class="network-detail-tab" data-tab="request">Request</button>
+									<button class="network-detail-tab" data-tab="requestjson">Request JSON</button>
+									<button class="network-detail-tab" data-tab="timing">Timing</button>
+								</div>
+								<div class="network-details-content">
+									<div id="network-headers" class="network-detail-panel active"></div>
+									<div id="network-response" class="network-detail-panel"></div>
+									<div id="network-json" class="network-detail-panel"></div>
+									<div id="network-request" class="network-detail-panel"></div>
+									<div id="network-requestjson" class="network-detail-panel"></div>
+									<div id="network-timing" class="network-detail-panel"></div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Application Tab -->
+			<div class="tab-content" id="application">
+				<div class="content-area">
+					<div class="storage-container">
+						<div class="storage-header">
+							<div>
+								<i class="fas fa-database"></i>
+								Local Storage
+							</div>
+							<div class="command-controls">
+								<button class="icon-button" id="refreshStorageButton" title="Refresh Storage">
+									<i class="fas fa-sync"></i>
+								</button>
+							</div>
+						</div>
+						<div class="storage-content" id="app-storage">
+							<!-- Chrome DevTools style table -->
+							<div class="devtools-storage-table">
+								<table class="storage-table">
+									<thead>
+										<tr>
+											<th class="storage-key-header">Key</th>
+											<th class="storage-value-header">Value</th>
+											<th class="storage-actions-header"></th>
+										</tr>
+									</thead>
+									<tbody id="storage-table-body">
+										<tr class="empty-storage">
+											<td colspan="3" class="empty-message">No data available</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Script Editor Tab -->
+			<div class="tab-content" id="script">
+				<div class="content-area">
+					<div class="script-editor-container">
+						<!-- Script Templates Tabs -->
+						<div class="script-tabs">
+							<div class="script-tab-list">
+								<div class="script-tab active" data-template="API_BASE_TEMPLATE">
+									<i class="fas fa-info-circle"></i>
+									<span>API BASE UPDATE</span>
+								</div>
+								<div class="script-tab" data-template="COOKIE_TEMPLATE">
+									<i class="fas fa-cookie-bite"></i>
+									<span>Cookies</span>
+								</div>
+								<div class="script-tab" data-template="CUSTOM_TEMPLATE">
+									<i class="fas fa-code"></i>
+									<span>Custom</span>
+								</div>
+							</div>
+							<div class="script-tab-actions">
+								<button class="icon-button" id="newTemplateButton" title="New Template">
+									<i class="fas fa-plus"></i>
+								</button>
+								<button class="icon-button" id="saveTemplateButton" title="Save Template">
+									<i class="fas fa-save"></i>
+								</button>
+							</div>
+						</div>
+
+						<!-- Editor Section -->
+						<div class="editor-container">
+							<div class="editor-header">
+								<div class="output-title">
+									<i class="fas fa-code"></i>
+									<span id="currentTemplateName">Page Info Script</span>
+								</div>
+								<div class="syntax-status" id="syntaxStatus">
+									<div class="status-indicator valid"></div>
+									<span>Syntax Valid</span>
+								</div>
+								<div class="editor-actions">
+									<button class="icon-button" id="formatScriptButton" title="Format Code">
+										<i class="fas fa-magic"></i>
+									</button>
+									<button class="icon-button" id="resetScriptButton" title="Reset to Template">
+										<i class="fas fa-undo"></i>
+									</button>
+								</div>
+							</div>
+							<div class="editor-scroll-container">
+								<div class="editor-wrapper" id="monaco-editor"></div>
+							</div>
+							<div class="editor-footer">
+								<div class="validation-controls">
+									<button id="validateSyntaxButton" class="action-button validate">
+										<i class="fas fa-check-circle"></i>
+										Validate Syntax
+									</button>
+									<button id="sendValidatedScriptButton" class="action-button send" disabled>
+										<i class="fas fa-paper-plane"></i>
+										Send Script
+									</button>
+								</div>
+								<div class="script-info">
+									<span class="info-item">
+										<i class="fas fa-code"></i>
+										<span id="lineCount">23 lines</span>
+									</span>
+									<span class="info-item">
+										<i class="fas fa-clock"></i>
+										<span id="lastValidated">Not validated</span>
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Validation Results -->
+					<div class="validation-container">
+						<div class="output-header">
+							<div class="output-title">
+								<i class="fas fa-clipboard-check"></i>
+								Validation Results
+							</div>
+							<div class="validation-summary" id="validationSummary">
+								<span class="status-badge ready">Ready for validation</span>
+							</div>
+						</div>
+						<div class="output-content" id="validationResults">
+							<div class="validation-placeholder">
+								<i class="fas fa-code"></i>
+								<h3>Syntax Validation</h3>
+								<p>Click "Validate Syntax" to check your JavaScript code for syntax errors and warnings.
+								</p>
+								<div class="validation-features">
+									<div class="feature-item">
+										<i class="fas fa-check"></i>
+										<span>ES6+ Syntax Support</span>
+									</div>
+									<div class="feature-item">
+										<i class="fas fa-exclamation-triangle"></i>
+										<span>Warning Detection</span>
+									</div>
+									<div class="feature-item">
+										<i class="fas fa-times-circle"></i>
+										<span>Error Highlighting</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- DOM Replay Tab -->
+			<div class="tab-content" id="replay">
+				<div class="content-area">
+					<div class="replay-section">
+						<div class="replay-controls">
+							<div class="replay-controls-left">
+								<div class="output-title">
+									<i class="fas fa-play"></i>
+									DOM Session Replay
+								</div>
+								<div class="replay-status idle" id="replayStatus">
+									<div class="status-indicator"></div>
+									<span id="replayStatusText">Waiting for session</span>
+								</div>
+							</div>
+
+							<div class="replay-progress hidden" id="replayProgress">
+								<div class="progress-bar" id="progressBar">
+									<div class="progress-fill" id="progressFill"></div>
+									<div class="progress-handle" id="progressHandle"></div>
+								</div>
+								<div class="replay-time">
+									<span id="currentTime">00:00</span> / <span id="totalTime">00:00</span>
+								</div>
+							</div>
+
+							<div class="replay-controls-right">
+								<button class="icon-button" id="playPauseButton" title="Play/Pause" disabled>
+									<i class="fas fa-play"></i>
+								</button>
+								<button class="icon-button" id="restartReplayButton" title="Restart" disabled>
+									<i class="fas fa-redo"></i>
+								</button>
+								<button class="icon-button" id="speedButton" title="Playback Speed" disabled>
+									<i class="fas fa-tachometer-alt"></i>
+									<span style="font-size: 9px; margin-left: 2px;">1x</span>
+								</button>
+								<button class="icon-button" id="fullscreenReplayButton" title="Fullscreen">
+									<i class="fas fa-expand"></i>
+								</button>
+								<button class="icon-button" id="screenshotReplayButton" title="Take Screenshot"
+									disabled>
+									<i class="fas fa-camera"></i>
+								</button>
+								<button class="icon-button" id="downloadReplayButton" title="Download Session" disabled>
+									<i class="fas fa-download"></i>
+								</button>
+								<button class="icon-button" id="cleanupReplayButton" title="Clean Up Memory"
+									onclick="window.cleanupDomReplay()">
+									<i class="fas fa-broom"></i>
+								</button>
+							</div>
+						</div>
+
+						<div id="replay-root">
+							<div class="replay-container" id="replay-container">
+								<!-- Nothing Here-->
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Debug Footer -->
+		<footer class="debug-footer">
+			<div class="footer-content">
+				<div class="footer-brand">
+					<span class="brand-icon">⚡</span>
+					<span class="brand-text">Remote Debug Console</span>
+					<span class="version">v1.0</span>
+				</div>
+				<div class="footer-status" id="footerStatus">
+					<span class="status-dot"></span>
+					<span class="status-text" id="connectionStatus">Ready</span>
+				</div>
+			</div>
+		</footer>
+	</div>
+	<!-- Monaco Editor Setup -->
+	<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+	<script src="monaco-config.js"></script>
+	<script>
+
+
+		// DevTools Banner Functions
+		function showDevToolsGuide() {
+			const guideModal = document.createElement('div');
+			guideModal.className = 'modal-overlay';
+			guideModal.innerHTML = `
+				<div class="modal-content" style="max-width: 600px;">
+					<div class="modal-header">
+						<h3 style="margin: 0; color: var(--accent);"><i class="fab fa-chrome"></i> Chrome DevTools Integration</h3>
+						<button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
+							<i class="fas fa-times"></i>
+						</button>
+					</div>
+					<div class="modal-body">
+						<div style="background: var(--bg-tertiary); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+							<h4 style="color: var(--success); margin-bottom: 8px;"><i class="fas fa-check-circle"></i> Automatic Workspace Detection</h4>
+							<p style="color: var(--text-secondary); margin: 0; font-size: 0.9em;">This debugging tool is configured for seamless Chrome DevTools integration with automatic workspace folder detection.</p>
+						</div>
+						
+						<h4 style="color: var(--text-primary); margin-bottom: 12px;">Setup Instructions:</h4>
+						<ol style="color: var(--text-secondary); line-height: 1.6; padding-left: 20px;">
+							<li>Open Chrome DevTools (F12)</li>
+							<li>Go to Settings → Experiments</li>
+							<li>Enable <strong>"Automatic Workspace Folders"</strong></li>
+							<li>Restart Chrome DevTools</li>
+							<li>Navigate to Sources → Workspace</li>
+							<li>The workspace should be automatically detected</li>
+						</ol>
+						
+						<div style="background: var(--bg-accent); padding: 12px; border-radius: 6px; margin-top: 16px;">
+							<p style="margin: 0; font-size: 0.85em; color: var(--info);">
+								<i class="fas fa-info-circle"></i> 
+								<strong>Note:</strong> This feature requires Chrome version 135+ and must be accessed via localhost.
+							</p>
+						</div>
+					</div>
+				</div>
+			`;
+			document.body.appendChild(guideModal);
+		}
+
+		function dismissDevToolsBanner() {
+			const banner = document.getElementById('devtoolsBanner');
+			if (banner) {
+				banner.classList.add('hidden');
+				// Store preference in localStorage
+				localStorage.setItem('devtools-banner-dismissed', 'true');
+			}
+		}
+
+		// Check if banner should be shown on page load
+		document.addEventListener('DOMContentLoaded', function () {
+			const bannerDismissed = localStorage.getItem('devtools-banner-dismissed');
+			const banner = document.getElementById('devtoolsBanner');
+
+			if (bannerDismissed === 'true' && banner) {
+				banner.classList.add('hidden');
+			}
+		});
+	</script>
+
+	<!-- Network Panel JavaScript -->
+	<script>
+		// Network Panel Functionality
+		class NetworkPanel {
+			constructor() {
+				this.requests = [];
+				this.filteredRequests = [];
+				this.sortColumn = 'timestamp';
+				this.sortDirection = 'desc';
+				this.activeFilter = 'all';
+				this.searchTerm = '';
+				this.selectedRequests = new Set();
+				this.hasRealDataStarted = false; // Track if real data has started
+				this.contextMenuEl = null; // custom context menu element
+
+				this.init();
+			}
+
+			init() {
+				this.bindEvents();
+				// Don't create mock data automatically - wait for real data
+				// this.createMockData(); // Commented out to only show real-time data
+				this.filterAndRender(); // Render empty state initially
+
+				// Create reusable context menu container
+				this.createContextMenu();
+				// Hide context menu on global click / escape
+				document.addEventListener('click', () => this.hideContextMenu());
+				document.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.hideContextMenu(); });
+			}
+
+			bindEvents() {
+				// Filter buttons
+				document.querySelectorAll('.filter-button').forEach(btn => {
+					btn.addEventListener('click', (e) => {
+						this.setFilter(e.target.closest('.filter-button').dataset.filter);
+					});
+				});
+
+				// Search input
+				const searchInput = document.getElementById('networkSearchInput');
+				if (searchInput) {
+					searchInput.addEventListener('input', (e) => {
+						this.setSearch(e.target.value);
+					});
+				}
+
+				// Sort headers
+				document.querySelectorAll('.sortable').forEach(header => {
+					header.addEventListener('click', (e) => {
+						const column = e.target.closest('.sortable').dataset.sort;
+						this.setSortColumn(column);
+					});
+				});
+
+				// Select all checkbox
+				const selectAllCheckbox = document.getElementById('selectAllNetwork');
+				if (selectAllCheckbox) {
+					selectAllCheckbox.addEventListener('change', (e) => {
+						this.selectAll(e.target.checked);
+					});
+				}
+
+				// Clear network button
+				const clearBtn = document.getElementById('clearNetworkButton');
+				if (clearBtn) {
+					clearBtn.addEventListener('click', () => {
+						this.clearAll();
+					});
+				}
+
+				// Refresh button
+				const refreshBtn = document.getElementById('refreshNetworkButton');
+				if (refreshBtn) {
+					refreshBtn.addEventListener('click', () => {
+						this.refresh();
+					});
+				}
+
+				// Modal close
+				const closeModal = document.getElementById('closeNetworkModal');
+				if (closeModal) {
+					closeModal.addEventListener('click', () => {
+						this.closeModal();
+					});
+				}
+
+				// Modal tabs
+				document.querySelectorAll('.network-detail-tab').forEach(tab => {
+					tab.addEventListener('click', (e) => {
+						this.setActiveTab(e.target.dataset.tab);
+					});
+				});
+			}
+
+			setFilter(filter) {
+				this.activeFilter = filter;
+
+				// Update active button
+				document.querySelectorAll('.filter-button').forEach(btn => {
+					btn.classList.remove('active');
+				});
+				document.querySelector('[data-filter="' + filter + '"]').classList.add('active');
+
+				this.filterAndRender();
+			}
+
+			setSearch(term) {
+				this.searchTerm = term.toLowerCase();
+				this.filterAndRender();
+			}
+
+			setSortColumn(column) {
+				if (this.sortColumn === column) {
+					this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+				} else {
+					this.sortColumn = column;
+					this.sortDirection = 'asc';
+				}
+
+				// Update sort indicators
+				document.querySelectorAll('.sortable').forEach(header => {
+					header.classList.remove('sorted-asc', 'sorted-desc');
+				});
+
+				const activeHeader = document.querySelector('[data-sort="' + column + '"]');
+				activeHeader.classList.add('sorted-' + this.sortDirection);
+
+				this.filterAndRender();
+			}
+
+			filterAndRender() {
+				// Filter by type
+				let filtered = this.requests;
+				if (this.activeFilter !== 'all') {
+					filtered = filtered.filter(req => req.type.toLowerCase().includes(this.activeFilter));
+				}
+
+				// Filter by search term
+				if (this.searchTerm) {
+					filtered = filtered.filter(req =>
+						req.name.toLowerCase().includes(this.searchTerm) ||
+						req.url.toLowerCase().includes(this.searchTerm) ||
+						req.method.toLowerCase().includes(this.searchTerm)
+					);
+				}
+
+				// Sort
+				filtered.sort((a, b) => {
+					let aVal = a[this.sortColumn];
+					let bVal = b[this.sortColumn];
+
+					if (typeof aVal === 'string') {
+						aVal = aVal.toLowerCase();
+						bVal = bVal.toLowerCase();
+					}
+
+					if (this.sortDirection === 'asc') {
+						return aVal > bVal ? 1 : -1;
+					} else {
+						return aVal < bVal ? 1 : -1;
+					}
+				});
+
+				this.filteredRequests = filtered;
+				this.render();
+			}
+
+			render() {
+				const tbody = document.getElementById('network-body');
+				if (!tbody) return;
+
+				console.log('Rendering network panel with', this.filteredRequests.length, 'filtered requests out of', this.requests.length, 'total requests');
+
+				if (this.filteredRequests.length === 0) {
+					tbody.innerHTML = '<tr class="network-placeholder">' +
+						'<td colspan="9" class="placeholder">' +
+						'<div class="network-empty-state">' +
+						'<i class="fas fa-globe"></i>' +
+						'<p>No network requests found</p>' +
+						'<small>Try adjusting your filters or search terms</small>' +
+						'</div>' +
+						'</td>' +
+						'</tr>';
+					return;
+				}
+
+				tbody.innerHTML = this.filteredRequests.map(req => {
+					return '<tr class="network-row" data-id="' + req.id + '">' +
+						'<td class="select-column">' +
+						'<input type="checkbox" class="request-checkbox" value="' + req.id + '" ' + (this.selectedRequests.has(req.id) ? 'checked' : '') + '>' +
+						'</td>' +
+						'<td class="request-url">' +
+						'<div class="request-name">' + req.name + '</div>' +
+						'<div class="request-path">' + req.path + '</div>' +
+						'</td>' +
+						'<td><span class="status-badge status-' + Math.floor(req.status / 100) + 'xx">' + req.status + '</span></td>' +
+						'<td><span class="method-badge method-' + req.method.toLowerCase() + '">' + req.method + '</span></td>' +
+						'<td>' + req.type + '</td>' +
+						'<td class="size-cell">' + this.formatSize(req.size) + '</td>' +
+						'<td class="time-cell">' + req.time + 'ms</td>' +
+						'<td>' + this.formatTime(req.timestamp) + '</td>' +
+						'<td class="actions-column">' +
+						'<button class="network-action-btn" onclick="networkPanel.viewRequest(\'' + req.id + '\')" title="View Details">' +
+						'<i class="fas fa-eye"></i>' +
+						'</button>' +
+						'<button class="network-action-btn delete" onclick="networkPanel.deleteRequest(\'' + req.id + '\')" title="Delete">' +
+						'<i class="fas fa-trash"></i>' +
+						'</button>' +
+						'</td>' +
+						'</tr>';
+				}).join('');
+
+				// Bind row click events
+				document.querySelectorAll('.network-row').forEach(row => {
+					row.addEventListener('click', (e) => {
+						if (!e.target.closest('.actions-column') && !e.target.closest('.select-column')) {
+							this.viewRequest(row.dataset.id);
+						}
+					});
+					// Right-click context menu
+					row.addEventListener('contextmenu', (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						this.showContextMenu(e, row.dataset.id);
+					});
+				});
+
+				// Bind checkbox events
+				document.querySelectorAll('.request-checkbox').forEach(checkbox => {
+					checkbox.addEventListener('change', (e) => {
+						this.toggleSelection(e.target.value, e.target.checked);
+					});
+				});
+			}
+
+			formatSize(bytes) {
+				if (bytes === 0) return '0 B';
+				const k = 1024;
+				const sizes = ['B', 'KB', 'MB', 'GB'];
+				const i = Math.floor(Math.log(bytes) / Math.log(k));
+				return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+			}
+
+			formatTime(timestamp) {
+				return new Date(timestamp).toLocaleTimeString();
+			}
+
+			toggleSelection(id, selected) {
+				if (selected) {
+					this.selectedRequests.add(id);
+				} else {
+					this.selectedRequests.delete(id);
+				}
+			}
+
+			selectAll(selected) {
+				this.selectedRequests.clear();
+				if (selected) {
+					this.filteredRequests.forEach(req => {
+						this.selectedRequests.add(req.id);
+					});
+				}
+				this.render();
+			}
+
+			deleteRequest(id) {
+				if (confirm('Delete this network request?')) {
+					this.requests = this.requests.filter(req => req.id !== id);
+					this.selectedRequests.delete(id);
+					this.filterAndRender();
+				}
+			}
+
+			clearAll() {
+				if (confirm('Clear all network requests?')) {
+					this.requests = [];
+					this.selectedRequests.clear();
+					this.filterAndRender();
+				}
+			}
+
+			refresh() {
+				this.filterAndRender();
+			}
+
+			viewRequest(id) {
+				const request = this.requests.find(req => req.id === id);
+				if (!request) return;
+
+				this.showModal(request);
+			}
+
+			showModal(request) {
+				const modal = document.getElementById('networkDetailsModal');
+				const title = document.getElementById('networkModalTitle');
+
+				if (!modal || !title) return;
+
+				var fullTitle = request.method + ' ' + request.url;
+				var displayTitle = fullTitle;
+				if (fullTitle.length > 140) {
+					// compress middle of very long URLs
+					var start = fullTitle.slice(0, 70);
+					var end = fullTitle.slice(-50);
+					displayTitle = start + '…' + end;
+				}
+				title.textContent = displayTitle;
+				title.setAttribute('title', fullTitle);
+
+				// Helper function to build headers HTML
+				const buildHeadersHTML = (headers) => {
+					return Object.entries(headers || {}).map(([key, value]) =>
+						'<div class="network-detail-item">' +
+						'<span class="network-detail-label">' + key + ':</span>' +
+						'<span class="network-detail-value">' + value + '</span>' +
+						'</div>'
+					).join('');
+				};
+
+				// Populate headers tab
+				document.getElementById('network-headers').innerHTML =
+					'<div class="network-detail-section">' +
+					'<h4>General</h4>' +
+					'<div class="network-detail-item">' +
+					'<span class="network-detail-label">Request URL:</span>' +
+					'<span class="network-detail-value">' + request.url + '</span>' +
+					'</div>' +
+					'<div class="network-detail-item">' +
+					'<span class="network-detail-label">Request Method:</span>' +
+					'<span class="network-detail-value">' + request.method + '</span>' +
+					'</div>' +
+					'<div class="network-detail-item">' +
+					'<span class="network-detail-label">Status Code:</span>' +
+					'<span class="network-detail-value">' + request.status + '</span>' +
+					'</div>' +
+					'</div>' +
+					'<div class="network-detail-section">' +
+					'<h4>Request Headers</h4>' +
+					buildHeadersHTML(request.requestHeaders) +
+					'</div>' +
+					'<div class="network-detail-section">' +
+					'<h4>Response Headers</h4>' +
+					buildHeadersHTML(request.responseHeaders) +
+					'</div>';
+
+				// Populate response tab
+				document.getElementById('network-response').innerHTML =
+					'<div class="network-detail-section">' +
+					'<h4>Response</h4>' +
+					'<div class="network-detail-code">' + (request.response || 'No response data') + '</div>' +
+					'</div>';
+
+				// Populate JSON tab (beautified if possible)
+				(function () {
+					var jsonPanel = document.getElementById('network-json');
+					if (!jsonPanel) return;
+					var raw = request.response;
+					var pretty = '';
+					if (raw) {
+						try {
+							var obj = typeof raw === 'string' ? JSON.parse(raw) : (typeof raw === 'object' ? raw : null);
+							if (obj) {
+								pretty = JSON.stringify(obj, null, 2);
+							}
+						} catch (e) {
+							// ignore parse error
+						}
+					}
+					if (!pretty) {
+						jsonPanel.innerHTML = '<div class="network-detail-section">' +
+							'<h4>JSON</h4>' +
+							'<div class="network-detail-item"><span class="network-detail-label">Info:</span><span class="network-detail-value">Response is not valid JSON</span></div>' +
+							'</div>';
+					} else {
+						jsonPanel.innerHTML = '<div class="network-detail-section">' +
+							'<h4>JSON (Beautified)</h4>' +
+							'<div class="network-detail-code" style="white-space:pre;">' + this.escapeHtml(pretty) + '</div>' +
+							'</div>';
+					}
+				}).call(this);
+
+				// Populate request tab
+				document.getElementById('network-request').innerHTML =
+					'<div class="network-detail-section">' +
+					'<h4>Request Payload</h4>' +
+					'<div class="network-detail-code">' + (request.requestData || 'No request data') + '</div>' +
+					'</div>';
+
+				// Populate request JSON tab (beautified if possible)
+				(function () {
+					var panel = document.getElementById('network-requestjson');
+					if (!panel) return;
+					var rawReq = request.requestData;
+					var prettyReq = '';
+					if (rawReq) {
+						try {
+							var objReq = typeof rawReq === 'string' ? JSON.parse(rawReq) : (typeof rawReq === 'object' ? rawReq : null);
+							if (objReq) {
+								prettyReq = JSON.stringify(objReq, null, 2);
+							}
+						} catch (e) { }
+					}
+					if (!prettyReq) {
+						panel.innerHTML = '<div class="network-detail-section">' +
+							'<h4>Request JSON</h4>' +
+							'<div class="network-detail-item"><span class="network-detail-label">Info:</span><span class="network-detail-value">Request payload is not valid JSON</span></div>' +
+							'</div>';
+					} else {
+						panel.innerHTML = '<div class="network-detail-section">' +
+							'<h4>Request JSON (Beautified)</h4>' +
+							'<div class="network-detail-code" style="white-space:pre;">' + this.escapeHtml(prettyReq) + '</div>' +
+							'</div>';
+					}
+				}).call(this);
+
+				// Populate timing tab
+				document.getElementById('network-timing').innerHTML =
+					'<div class="network-detail-section">' +
+					'<h4>Timing</h4>' +
+					'<div class="network-detail-item">' +
+					'<span class="network-detail-label">Duration:</span>' +
+					'<span class="network-detail-value">' + request.time + 'ms</span>' +
+					'</div>' +
+					'<div class="network-detail-item">' +
+					'<span class="network-detail-label">Timestamp:</span>' +
+					'<span class="network-detail-value">' + new Date(request.timestamp).toISOString() + '</span>' +
+					'</div>' +
+					'</div>';
+
+				modal.classList.add('active');
+			}
+
+			escapeHtml(str) {
+				return String(str)
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/"/g, '&quot;')
+					.replace(/'/g, '&#39;');
+			}
+
+			closeModal() {
+				const modal = document.getElementById('networkDetailsModal');
+				if (modal) {
+					modal.classList.remove('active');
+				}
+			}
+
+			setActiveTab(tabName) {
+				// Update tab buttons
+				document.querySelectorAll('.network-detail-tab').forEach(tab => {
+					tab.classList.remove('active');
+				});
+				document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
+
+				// Update panels
+				document.querySelectorAll('.network-detail-panel').forEach(panel => {
+					panel.classList.remove('active');
+				});
+				document.getElementById('network-' + tabName).classList.add('active');
+			}
+
+			// Demo data creation
+			createMockData() {
+				const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+				const types = ['xhr', 'fetch', 'js', 'css', 'img', 'font', 'doc'];
+				const statuses = [200, 201, 304, 400, 401, 404, 500];
+
+				for (let i = 0; i < 15; i++) {
+					const method = methods[Math.floor(Math.random() * methods.length)];
+					const type = types[Math.floor(Math.random() * types.length)];
+					const status = statuses[Math.floor(Math.random() * statuses.length)];
+					const timestamp = Date.now() - Math.random() * 3600000;
+
+					this.requests.push({
+						id: 'req-' + i,
+						name: 'example-' + i + '.json',
+						path: '/api/v1/data/example-' + i + '.json',
+						url: 'https://api.example.com/v1/data/example-' + i + '.json',
+						method: method,
+						status: status,
+						type: type,
+						size: Math.floor(Math.random() * 10000),
+						time: Math.floor(Math.random() * 1000),
+						timestamp: timestamp,
+						requestHeaders: {
+							'Content-Type': 'application/json',
+							'Authorization': 'Bearer token123'
+						},
+						responseHeaders: {
+							'Content-Type': 'application/json',
+							'Cache-Control': 'no-cache'
+						},
+						response: JSON.stringify({ data: 'example response' }, null, 2),
+						requestData: method === 'POST' ? JSON.stringify({ id: i, data: 'example' }, null, 2) : null
+					});
+				}
+
+				this.filterAndRender();
+			}
+
+			// Public method to add new requests
+			addRequest(requestData) {
+				// Filter only GET / POST
+				var m = (requestData.method || '').toUpperCase();
+				if (m && !['GET', 'POST'].includes(m)) {
+					return; // ignore other methods
+				}
+
+				// Basic dedupe: same method+url+timestamp(second) ignore if last inserted identical
+				if (this.requests.length) {
+					var last = this.requests[0];
+					var tsBucket = Math.floor(Date.now() / 1000);
+					if (last._dedupeKey && last._dedupeKey === (m + '|' + requestData.url + '|' + tsBucket)) {
+						return; // duplicate within same second
+					}
+				}
+				// Clear dummy data on first real request only (one-time operation)
+				if (!this.hasRealDataStarted && this.requests.length > 0 && this.requests[0].id && this.requests[0].id.startsWith('req-')) {
+					console.log('Clearing dummy data, switching to real-time data');
+					this.requests = [];
+					this.selectedRequests.clear();
+					this.hasRealDataStarted = true; // Flag to prevent clearing again
+				}
+
+				var now = Date.now();
+				var dedupeKey = m + '|' + requestData.url + '|' + Math.floor(now / 1000);
+				this.requests.unshift({
+					id: 'req-' + now + '-' + Math.random().toString(36).substr(2, 9),
+					timestamp: now,
+					_dedupeKey: dedupeKey,
+					...requestData
+				});
+				console.log('Added real-time network request:', requestData);
+				console.log('Total requests in panel:', this.requests.length);
+				this.filterAndRender();
+			}
+
+			// -------- Context Menu Logic (Copy as cURL) --------
+			createContextMenu() {
+				if (this.contextMenuEl) return;
+				const menu = document.createElement('div');
+				menu.id = 'networkContextMenu';
+				menu.style.position = 'fixed';
+				menu.style.zIndex = '9999';
+				menu.style.background = '#1e1f26';
+				menu.style.border = '1px solid #333';
+				menu.style.minWidth = '180px';
+				menu.style.padding = '4px 0';
+				menu.style.boxShadow = '0 4px 12px rgba(0,0,0,.45)';
+				menu.style.borderRadius = '6px';
+				menu.style.fontSize = '13px';
+				menu.style.display = 'none';
+				menu.style.userSelect = 'none';
+				menu.innerHTML = '<div class="ctx-item" data-action="copy-curl" style="padding:6px 14px;cursor:pointer;display:flex;gap:8px;align-items:center;">\n<span style="flex:1;">Copy as cURL</span><kbd style="background:#2d2f3a;padding:2px 5px;border-radius:4px;font-size:11px;">C</kbd></div>' +
+					'<div class="ctx-hint" style="padding:4px 14px;color:#777;font-size:11px;border-top:1px solid #2c2d33;">Right-click menu</div>';
+				document.body.appendChild(menu);
+				menu.addEventListener('click', (e) => {
+					const item = e.target.closest('.ctx-item');
+					if (!item) return;
+					const action = item.getAttribute('data-action');
+					const id = menu.getAttribute('data-request-id');
+					if (action === 'copy-curl') {
+						this.copyAsCurl(id);
+					}
+					this.hideContextMenu();
+				});
+				// Hover styles via JS to avoid editing global CSS
+				menu.addEventListener('mouseover', (e) => {
+					const item = e.target.closest('.ctx-item');
+					if (item) item.style.background = '#2a2c33';
+				});
+				menu.addEventListener('mouseout', (e) => {
+					const item = e.target.closest('.ctx-item');
+					if (item) item.style.background = 'transparent';
+				});
+				this.contextMenuEl = menu;
+			}
+
+			showContextMenu(evt, requestId) {
+				if (!this.contextMenuEl) return;
+				this.contextMenuEl.style.display = 'block';
+				this.contextMenuEl.style.left = Math.min(evt.clientX, window.innerWidth - this.contextMenuEl.offsetWidth - 4) + 'px';
+				this.contextMenuEl.style.top = Math.min(evt.clientY, window.innerHeight - this.contextMenuEl.offsetHeight - 4) + 'px';
+				this.contextMenuEl.setAttribute('data-request-id', requestId);
+			}
+
+			hideContextMenu() {
+				if (this.contextMenuEl) this.contextMenuEl.style.display = 'none';
+			}
+
+			copyAsCurl(id) {
+				const request = this.requests.find(r => r.id === id);
+				if (!request) return;
+				// Ask user if including Authorization when present
+				const includeAuth = request.requestHeaders && Object.keys(request.requestHeaders).some(h => /authorization/i.test(h)) ? confirm('Include Authorization header in cURL?') : false;
+				const curl = this.buildCurlCommand(request, { includeAuth });
+				this.copyTextToClipboard(curl);
+				this.flashToast('cURL copied');
+			}
+
+			buildCurlCommand(req, opts) {
+				opts = opts || {}; const includeAuth = !!opts.includeAuth;
+				const method = (req.method || 'GET').toUpperCase();
+				let parts = ['curl'];
+				// Add URL early for readability at end anyway
+				// Method
+				if (method !== 'GET') parts.push('-X ' + this.shellEscape(method));
+				// Headers
+				const headers = req.requestHeaders || {};
+				Object.keys(headers).forEach(key => {
+					if (!includeAuth && /authorization/i.test(key)) return;
+					parts.push('-H ' + this.shellEscape(key + ': ' + headers[key]));
+				});
+				// Detect form-urlencoded
+				let body = req.requestData;
+				if (body && typeof body !== 'string') {
+					try { body = JSON.stringify(body); } catch (e) { body = String(body); }
+				}
+				if (body && method !== 'GET') {
+					// If content-type is application/x-www-form-urlencoded and body looks like JSON object string, leave as-is.
+					const ct = Object.keys(headers).find(h => /content-type/i.test(h));
+					if (ct && /application\/x-www-form-urlencoded/i.test(headers[ct])) {
+						// body assumed already encoded
+						parts.push('--data-raw ' + this.shellEscape(body));
+					} else {
+						// Large body truncation safeguard
+						let finalBody = body;
+						if (finalBody.length > 5000) {
+							finalBody = finalBody.slice(0, 5000) + '\n/* Body truncated for cURL preview (original length ' + body.length + ') */';
+						}
+						parts.push('--data ' + this.shellEscape(finalBody));
+					}
+				}
+				parts.push(this.shellEscape(req.url));
+				return parts.join(' ');
+			}
+
+			shellEscape(str) {
+				if (str == null) return "''";
+				// Simple single-quote escape for POSIX shells
+				return "'" + String(str).replace(/'/g, "'\\''") + "'";
+			}
+
+			copyTextToClipboard(text) {
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(text).catch(() => this.fallbackCopy(text));
+				} else {
+					this.fallbackCopy(text);
+				}
+			}
+
+			fallbackCopy(text) {
+				const ta = document.createElement('textarea');
+				ta.value = text;
+				ta.style.position = 'fixed';
+				ta.style.top = '-2000px';
+				document.body.appendChild(ta);
+				ta.focus();
+				ta.select();
+				try { document.execCommand('copy'); } catch (e) { console.warn('Copy failed', e); }
+				document.body.removeChild(ta);
+			}
+
+			flashToast(message) {
+				let toast = document.getElementById('networkToast');
+				if (!toast) {
+					toast = document.createElement('div');
+					toast.id = 'networkToast';
+					toast.style.position = 'fixed';
+					toast.style.bottom = '20px';
+					toast.style.right = '20px';
+					toast.style.background = '#32343d';
+					toast.style.color = '#fff';
+					toast.style.padding = '10px 16px';
+					toast.style.borderRadius = '6px';
+					toast.style.fontSize = '13px';
+					toast.style.boxShadow = '0 4px 10px rgba(0,0,0,.4)';
+					toast.style.zIndex = '9999';
+					document.body.appendChild(toast);
+				}
+				toast.textContent = message;
+				toast.style.opacity = '1';
+				toast.style.transition = 'opacity .3s';
+				clearTimeout(this._toastTimer);
+				this._toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 1600);
+			}
+
+			// Method to manually clear all data including dummy data
+			clearDummyData() {
+				console.log('Manually clearing all dummy data');
+				this.requests = [];
+				this.selectedRequests.clear();
+				this.filterAndRender();
+			}
+		}
+
+		// Initialize network panel
+		let networkPanel;
+		document.addEventListener('DOMContentLoaded', function () {
+			networkPanel = new NetworkPanel();
+
+			// Expose methods for debugging
+			window.networkPanel = networkPanel;
+			console.log('NetworkPanel initialized and available globally');
+
+			// Add a helper method to toggle demo data for testing
+			window.toggleDemoData = function () {
+				if (networkPanel.requests.length === 0 || !networkPanel.requests[0].id.startsWith('req-')) {
+					console.log('Loading demo data...');
+					networkPanel.createMockData();
+				} else {
+					console.log('Clearing demo data...');
+					networkPanel.clearDummyData();
+				}
+			};
+		});
+	</script>
+
+	<script src="debugmode.js"></script>
+</body>
+
+</html>
